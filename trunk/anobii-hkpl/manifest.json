@@ -1,0 +1,21 @@
+{
+  "name": "aNobii with HKPL",
+  "version": "1",
+  "description": "Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result",
+  "background_page": "background.html",
+  "content_scripts": [
+    {
+      "matches": ["http://www.anobii.com/books/*", "http://www.anobii.com/wishlist*",
+                  "http://www.anobii.com/*/books*", "http://www.anobii.com/*/wishlist*",
+                  "http://www.anobii.com/search*", "http://www.anobii.com/contributors/*",
+                  "http://www.anobii.com/tags/*", "http://www.anobii.com/news_neighbor*"],
+      "js": ["xhrproxy.js", "ellab-utils.js", "ellab-big5.js", "anobiihkpl.user.js"]
+    }
+  ],
+  "permissions": [
+    "http://libcat.hkpl.gov.hk/"
+  ],
+  "icons": {
+    "128": "icon-128.png"
+  }
+}
