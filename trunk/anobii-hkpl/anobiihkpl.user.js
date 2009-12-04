@@ -1,6 +1,6 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name           aNobii with HKPL
-// @version        1
+// @version        2
 // @namespace      http://ellab.org/
 // @description    Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-1/ellab-utils.js
@@ -21,6 +21,7 @@ Author: Angus http://angusdev.mysinablog.com/
 Date:   2009-11-10
 
 Version history:
+2                   Fix issue #4 Search books with punctuation in their name usually return no result from HKPL
 1    10-Nov-2008    Initial release
 */
 
@@ -206,7 +207,13 @@ function onClickSearch(ele, isRetry) {
     if (utf8array[i][0] == '%' && utf8array[i].length == 7) {
       var big5 = org.ellab.big5.utf82big5(utf8array[i].substring(1));
       if (big5) {
-        big5url += '%' + big5[0] + big5[1] + '%' + big5[2] + big5[3];
+        if (big5 >= 'A140' && big5 <= 'A3BF') {
+          // replace "Graphical characters" with space
+          big5url += '%20';
+        }
+        else {
+          big5url += '%' + big5[0] + big5[1] + '%' + big5[2] + big5[3];
+        }
       }
     }
     else {
