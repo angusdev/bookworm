@@ -50,36 +50,35 @@ var g_sessionId = utils.getSession(SESSION_ID_KEY);
 var g_loading = false;
 var LOADING_SRC = 'data:image/gif;base64,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';
 
-function parseUTF8URL(url) {
-  var array = new Array();
-  for (var i=0;i<url.length;i++) {
-    if (url[i] == '%') {
-      if (i<url.length-2) {
-        array.push(url.substring(i, i+3));
-        i += 2;
-      }
-      else {
-        array.push(url.substring(i));
-        i = url.length;
-      }
+function decimalToHex(d, padding) {
+  var hex = Number(d).toString(16);
+  padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
+
+  while (hex.length < padding) {
+    hex = '0' + hex;
+  }
+
+  return hex.toUpperCase();
+}
+
+function encodeUTF8(s) {
+  s = s.replace(/\r\n/g,'\n');
+  var utftext = [];
+
+  for (var i=0 ; i<s.length ; i++) {
+    var c = s.charCodeAt(i);
+
+    if (c < 2048) {
+      utftext.push(s[i]);
     }
     else {
-      array.push(url[i]);
+      utftext.push(decimalToHex((c >> 12) | 224, 2) +
+                   decimalToHex(((c >> 6) & 63) | 128, 2) +
+                   decimalToHex((c & 63) | 128, 2));
     }
   }
 
-  var finalarray = new Array();
-  for (var i=0;i<array.length;i++) {
-    if (array[i][0] == '%' && array[i+1][0] == '%' && array[i+2][0] == '%' && array[i][1] == 'C' || array[i][1] == 'E') {
-      finalarray.push(array[i] + array[i+1][1] + array[i+1][2] + array[i+2][1] + array[i+2][2]);
-      i += 2;
-    }
-    else {
-      finalarray.push(array[i]);
-    }
-  }
-
-  return finalarray;
+  return utftext;
 }
 
 function getHKPLSessionId(func) {
@@ -133,18 +132,9 @@ function processBookList() {
 
   for (var i=0; i<res.snapshotLength; i++) {
     var ele = res.snapshotItem(i);
-    var matched = false;
-    var url = '';
-    if (displayMode == DISPLAY_BOOK) {
-      url = document.location.href;
-    }
-    else {
-      url = ele.href;
-    }
-    url = url.replace(/:_span_classsubtitle[^\/]*/g, '');
-    var matched = url.match(/^http:\/\/(www\.)?anobii\.com\/books\/([\s:%_a-zA-Z0-9]+)\//);
+    var matched = ele.innerHTML.match(/^\s*([^<]+)/);
     if (matched) {
-      var bookName = matched[2];
+      var bookName = matched[1].replace(/\s*$/, '');
 
       var search = document.createElement('a');
       search.innerHTML = LANG['SEARCH'];
@@ -202,14 +192,16 @@ function onClickSearch(ele, isRetry) {
   }
 
   var big5url = '';
-  var utf8array = parseUTF8URL(ele.getAttribute('name'));
+  var utf8array = encodeUTF8(ele.getAttribute('name'));
   for (var i=0;i<utf8array.length;i++) {
-    if (utf8array[i][0] == '%' && utf8array[i].length == 7) {
-      var big5 = org.ellab.big5.utf82big5(utf8array[i].substring(1));
+    if (utf8array[i].length == 6) {
+      var big5 = org.ellab.big5.utf82big5(utf8array[i]);
       if (big5) {
         if (big5 >= 'A140' && big5 <= 'A3BF') {
           // replace "Graphical characters" with space
-          big5url += '%20';
+          if (i < utf8array.length - 1) {
+            big5url += '%20';
+          }
         }
         else {
           big5url += '%' + big5[0] + big5[1] + '%' + big5[2] + big5[3];
@@ -217,7 +209,7 @@ function onClickSearch(ele, isRetry) {
       }
     }
     else {
-      big5url += utf8array[i]=='_'?' ':utf8array[i];
+      big5url += utf8array[i]=='_'?'%20':encodeURIComponent(utf8array[i]);
     }
   }
   var urlprefix = 'http://libcat.hkpl.gov.hk/webpac_cjk/wgbroker.exe?' + g_sessionId + '+-access+top.books-page+search+open+BT+';
