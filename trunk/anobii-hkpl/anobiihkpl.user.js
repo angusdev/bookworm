@@ -22,6 +22,7 @@ Date:   2009-11-10
 
 Version history:
 2                   Fix issue #4 Search books with punctuation in their name usually return no result from HKPL
+                    Fix issue #7 Search button does not show up in book detail page after anobii revamp
 1    10-Nov-2008    Initial release
 */
 
@@ -103,7 +104,7 @@ function processBookList() {
 
   var displayMode = DISPLAY_BOOK;
 
-  var res = document.evaluate("//body[@id='book_page']//div[@id='larger_wrap']//ul[@id='item_box_text']/li[@class='title']", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+  var res = document.evaluate("//div[@id='product_info']/div[@class='info']/h1[@class='title']", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
   if (res.snapshotLength == 0) {
     res = document.evaluate("//table[@class='simple_list_view_container']//td[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
     if (res.snapshotLength > 0) {
