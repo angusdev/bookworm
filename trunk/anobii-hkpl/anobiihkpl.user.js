@@ -1,10 +1,12 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name           aNobii with HKPL
 // @version        2
 // @namespace      http://ellab.org/
 // @description    Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-1/ellab-utils.js
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-big5-1/ellab-big5.js
+// @resource       loading loading.gif
+// @resource       shadowAlpha shadowAlpha.png
 // @include        http://www.anobii.com/books/*
 // @include        http://www.anobii.com/wishlist*
 // @include        http://www.anobii.com/*/books*
@@ -18,11 +20,13 @@
 /*
 Author: Angus http://angusdev.mysinablog.com/
               http://angusdev.blogspot.com/
-Date:   2009-11-10
+              http://twitter.com/angusdev
+Date:   2010-01-31
 
 Version history:
-2                   Fix issue #4 Search books with punctuation in their name usually return no result from HKPL
-                    Fix issue #7 Search button does not show up in book detail page after anobii revamp
+2                   Issue #3 Handle multiple results from hkpl
+                    Issue #4 Search books with punctuation in their name usually return no result from HKPL
+                    Issue #7 Search button does not show up in book detail page after anobii revamp
 1    10-Nov-2008    Initial release
 */
 
@@ -33,6 +37,7 @@ var extract = org.ellab.utils.extract;
 
 var LANG = new Array();
 LANG['SEARCH'] = '搜尋公共圖書館';
+LANG['SEARCH_INLINE'] = '搜尋';
 LANG['NOTFOUND'] = '沒有紀錄';
 LANG['FOUND1'] = '共 ';
 LANG['FOUND2'] = ' 本，';
@@ -47,9 +52,11 @@ var HKPL_TEXT_IN_TRANSIT = '轉移中';
 var HKPL_TEXT_CLOSED_STACK = '閉架';
 
 var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
+var g_domainPrefix = 'http://libcat.hkpl.gov.hk';
 var g_sessionId = utils.getSession(SESSION_ID_KEY);
 var g_loading = false;
-var LOADING_SRC = 'data:image/gif;base64,R0lGODlhEAAQAMQAAP///+7u7t3d3bu7u6qqqpmZmYiIiHd3d2ZmZlVVVURERDMzMyIiIhEREQARAAAAAP///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFBwAQACwAAAAAEAAQAAAFdyAkQgGJJOWoQgIjBM8jkKsoPEzgyMGsCjPDw7ADpkQBxRDmSCRetpRA6Rj4kFBkgLC4IlUGhbNQIwXOYYWCXDufzYPDMaoKGBoKb886OjAKdgZAAgQkfCwzAgsDBAUCgl8jAQkHEAVkAoA1AgczlyIDczUDA2UhACH5BAUHABAALAAAAAAPABAAAAVjICSO0IGIATkqIiMKDaGKC8Q49jPMYsE0hQdrlABCGgvT45FKiRKQhWA0mPKGPAgBcTjsspBCAoH4gl+FmXNEUEBVAYHToJAVZK/XWoQQDAgBZioHaX8igigFKYYQVlkCjiMhACH5BAUHABAALAAAAAAQAA8AAAVgICSOUGGQqIiIChMESyo6CdQGdRqUENESI8FAdFgAFwqDISYwPB4CVSMnEhSej+FogNhtHyfRQFmIol5owmEta/fcKITB6y4choMBmk7yGgSAEAJ8JAVDgQFmKUCCZnwhACH5BAUHABAALAAAAAAQABAAAAViICSOYkGe4hFAiSImAwotB+si6Co2QxvjAYHIgBAqDoWCK2Bq6A40iA4yYMggNZKwGFgVCAQZotFwwJIF4QnxaC9IsZNgLtAJDKbraJCGzPVSIgEDXVNXA0JdgH6ChoCKKCEAIfkEBQcAEAAsAAAAABAADgAABUkgJI7QcZComIjPw6bs2kINLB5uW9Bo0gyQx8LkKgVHiccKVdyRlqjFSAApOKOtR810StVeU9RAmLqOxi0qRG3LptikAVQEh4UAACH5BAUHABAALAAAAAAQABAAAAVxICSO0DCQKBQQonGIh5AGB2sYkMHIqYAIN0EDRxoQZIaC6bAoMRSiwMAwCIwCggRkwRMJWKSAomBVCc5lUiGRUBjO6FSBwWggwijBooDCdiFfIlBRAlYBZQ0PWRANaSkED1oQYHgjDA8nM3kPfCmejiEAIfkEBQcAEAAsAAAAABAAEAAABWAgJI6QIJCoOIhFwabsSbiFAotGMEMKgZoB3cBUQIgURpFgmEI0EqjACYXwiYJBGAGBgGIDWsVicbiNEgSsGbKCIMCwA4IBCRgXt8bDACkvYQF6U1OADg8mDlaACQtwJCEAIfkEBQcAEAAsAAABABAADwAABV4gJEKCOAwiMa4Q2qIDwq4wiriBmItCCREHUsIwCgh2q8MiyEKODK7ZbHCoqqSjWGKI1d2kRp+RAWGyHg+DQUEmKliGx4HBKECIMwG61AgssAQPKA19EAxRKz4QCVIhACH5BAUHABAALAAAAAAQABAAAAVjICSOUBCQqHhCgiAOKyqcLVvEZOC2geGiK5NpQBAZCilgAYFMogo/J0lgqEpHgoO2+GIMUL6p4vFojhQNg8rxWLgYBQJCASkwEKLC17hYFJtRIwwBfRAJDk4ObwsidEkrWkkhACH5BAUHABAALAAAAQAQAA8AAAVcICSOUGAGAqmKpjis6vmuqSrUxQyPhDEEtpUOgmgYETCCcrB4OBWwQsGHEhQatVFhB/mNAojFVsQgBhgKpSHRTRxEhGwhoRg0CCXYAkKHHPZCZRAKUERZMAYGMCEAIfkEBQcAEAAsAAABABAADwAABV0gJI4kFJToGAilwKLCST6PUcrB8A70844CXenwILRkIoYyBRk4BQlHo3FIOQmvAEGBMpYSop/IgPBCFpCqIuEsIESHgkgoJxwQAjSzwb1DClwwgQhgAVVMIgVyKCEAIfkECQcAEAAsAAAAABAAEAAABWQgJI5kSQ6NYK7Dw6xr8hCw+ELC85hCIAq3Am0U6JUKjkHJNzIsFAqDqShQHRhY6bKqgvgGCZOSFDhAUiWCYQwJSxGHKqGAE/5EqIHBjOgyRQELCBB7EAQHfySDhGYQdDWGQyUhADs=';
+var LOADING_IMG = GM_getResourceURL('loading');
+var SHADOWALPHA_IMG = GM_getResourceURL('shadowAlpha');
 
 function decimalToHex(d, padding) {
   var hex = Number(d).toString(16);
@@ -186,45 +193,164 @@ function onClickSearch(ele, isRetry) {
   ele.setAttribute('already-visited', 'true');
   g_loading = true;
 
-  ele.innerHTML = '<img src="' + LOADING_SRC + '" border="0"/>';
+  ele.innerHTML = '<img src="' + LOADING_IMG + '" border="0"/>';
   if (!g_sessionId) {
     getHKPLSessionId (function() { onClickSearch(ele, true); });
     return;
   }
 
-  var big5url = '';
-  var utf8array = encodeUTF8(ele.getAttribute('name'));
-  for (var i=0;i<utf8array.length;i++) {
-    if (utf8array[i].length == 6) {
-      var big5 = org.ellab.big5.utf82big5(utf8array[i]);
-      if (big5) {
-        if (big5 >= 'A140' && big5 <= 'A3BF') {
-          // replace "Graphical characters" with space
-          if (i < utf8array.length - 1) {
-            big5url += '%20';
+  var urlPrefix = g_domainPrefix + '/webpac_cjk/wgbroker.exe?' + g_sessionId + '+-access+top.books-page+search+open+BT+';
+  var urlSuffix = '%23%23A:NONE%23NONE:NONE::%23%23';
+  var url = '';
+  
+  if (ele.getAttribute('name')) {
+    var big5url = '';
+    var utf8array = encodeUTF8(ele.getAttribute('name'));
+    for (var i=0;i<utf8array.length;i++) {
+      if (utf8array[i].length == 6) {
+        var big5 = org.ellab.big5.utf82big5(utf8array[i]);
+        if (big5) {
+          if (big5 >= 'A140' && big5 <= 'A3BF') {
+            // replace "Graphical characters" with space
+            if (i < utf8array.length - 1) {
+              big5url += '%20';
+            }
+          }
+          else {
+            big5url += '%' + big5[0] + big5[1] + '%' + big5[2] + big5[3];
           }
         }
-        else {
-          big5url += '%' + big5[0] + big5[1] + '%' + big5[2] + big5[3];
-        }
+      }
+      else {
+        big5url += utf8array[i]=='_'?'%20':encodeURIComponent(utf8array[i]);
       }
     }
-    else {
-      big5url += utf8array[i]=='_'?'%20':encodeURIComponent(utf8array[i]);
+    url = urlPrefix + big5url + urlSuffix;
+  }
+  else if (ele.getAttribute('searchurl')) {
+    url = g_domainPrefix + ele.getAttribute('searchurl');
+  }
+  if (url) {
+    org.ellab.utils.crossOriginXMLHttpRequest({
+      method: 'GET',
+      url: url,
+      overrideMimeType: 'text/html; charset=big5',
+      onload: function(t) {
+        g_loading = false;
+        onLoadSearch(ele, t.responseText, url);
+      }
+    });
+  }
+  else {
+    // make a fake response to report error
+    g_loading = false;
+    onLoadSearch(ele, '', url);
+  }
+}
+
+function calcOffsetTop(ele) {
+  var top = 0;
+  do {
+    if (!isNaN(ele.offsetTop)) top += ele.offsetTop;
+  } while (ele = ele.offsetParent);
+
+  return top;
+}
+
+function calcOffsetLeft(ele) {
+  var left = 0;
+  do {
+    if (!isNaN(ele.offsetLeft)) left += ele.offsetLeft;
+  } while (ele = ele.offsetParent);
+
+  return left;
+}
+
+function expandMultipleResult(ele, t) {
+  var res = t.match(/<A HREF=\"\/webpac_cjk\/wgbroker\.exe\?[^\"]+search\+select[^\"]+\">/gi);
+  if (res) {
+    var html = '';
+    for (var i=0;i<res.length;i++) {
+      var searchUrl = res[i].match(/\"([^\"]+)\"/)[1];
+      var s = extract(t, res[i], i<res.length-1?'<A':'</TABLE>');
+      // remove <script> tag
+      while (s.indexOf('<SCRIPT>') >= 0) {
+        s = extract(s, '', '<SCRIPT>' ) + extract(s, '</SCRIPT>');
+      }
+      while (s.indexOf('<script>') >= 0) {
+        s = extract(s, '', '<script>' ) + extract(s, '</script>');
+      }
+      // remove trailing tr
+      if (s.indexOf('</TR>') >= 0) s = extract(s, '', '</TR>');
+      if (s.indexOf('<TR') >= 0) s = extract(s, '', '<TR');
+      
+      s = '<td>' + s + '</td>';
+      // cleanup td attr
+      s = s.replace(/<td[^\>]*>/ig, '<td>');
+      // remove leading and trailing space of <td>
+      s = s.replace(/>\s*(&nbsp;)?\s*/g, '>');
+      s = s.replace(/\s*(&nbsp;)?\s*</g, '<');
+      // convert book name to direct link
+      s = s.replace(/<td>([^<]+)<\/td>/i, '<td><a href="' + g_domainPrefix + searchUrl + '" target="_blank">$1</a></td>');
+      // add the search inline button after the first cell
+      s = s.replace(/<\/td>/i, '</td><td><a style="white-space:nowrap; color:#6a0;" class="anobii-with-hkpl-search-inline" href="javascript:void(0);"' +
+                               ' searchurl="' + searchUrl + '">' + 
+                               LANG['SEARCH_INLINE'] + '</a></td>');
+      // set td style
+      s = s.replace(/<td>/ig, '<td style="border:1px solid grey; padding:2px 4px 2px 4px; text-align:left;">');
+      
+      html += '<tr>' + s + '</tr>';
+    }
+    if (html) {
+      html = '<table width="100%">' + html + '</table>';
+      var divWidth = 500;
+      var divBorder = 0;
+      var divPadding = 0;
+      var shadowWidth = 6;
+      var top = calcOffsetTop(ele);
+      top += ele.offsetHeight + shadowWidth + 6;
+      var left = calcOffsetLeft(ele);
+      left = left + shadowWidth + ele.offsetWidth - divWidth - divBorder * 2 - divPadding * 2;
+
+      var divShadow = document.getElementById('anobii-with-hkpl-layer');
+      var divContent = document.getElementById('anobii-with-hkpl-layer-content');
+      if (!divShadow || !divContent) {
+        divShadow = document.createElement('div');
+        divShadow.setAttribute('id', 'anobii-with-hkpl-layer');
+        divShadow.setAttribute('style', 
+                               'display:none; position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
+        divContent = document.createElement('div');
+        divContent.setAttribute('id', 'anobii-with-hkpl-layer-content');
+        divContent.setAttribute('style', 
+                                'width:' + divWidth + 'px; padding:' + divPadding + 'px; background-color:white;' + 
+                                'margin:-' + shadowWidth + 'px ' + shadowWidth + 'px ' + shadowWidth + 'px -' + shadowWidth + 'px;' +
+                                'border:' + divBorder + 'px solid grey;');
+        divShadow.appendChild(divContent);
+        document.body.appendChild(divShadow);
+      }
+      divShadow.style.left = left + 'px';
+      divShadow.style.top = top + 'px';
+      divContent.innerHTML = html;     
+
+      // attach the click event of search link
+      var searchRes = document.evaluate(".//a[@class='anobii-with-hkpl-search-inline']", divContent, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+      for (var i=0;i<searchRes.snapshotLength;i++) {
+        var search = searchRes.snapshotItem(i);
+        search.addEventListener('click', function(e) {
+          if (e.target.getAttribute('already-visited')) {
+            e.stopPropagation();
+          }
+          else {
+            onClickSearch(e.target, false);
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        }, false);
+      }
+
+      divShadow.style.display = '';
     }
   }
-  var urlprefix = 'http://libcat.hkpl.gov.hk/webpac_cjk/wgbroker.exe?' + g_sessionId + '+-access+top.books-page+search+open+BT+';
-  var urlsuffix = '%23%23A:NONE%23NONE:NONE::%23%23';
-  var url = urlprefix + big5url + urlsuffix;
-  org.ellab.utils.crossOriginXMLHttpRequest({
-    method: 'GET',
-    url: url,
-    overrideMimeType: 'text/html; charset=big5',
-    onload: function(t) {
-      g_loading = false;
-      onLoadSearch(ele, t.responseText, url);
-    }
-  });
 }
 
 function onLoadSearch(ele, t, url) {
@@ -290,6 +416,7 @@ function onLoadSearch(ele, t, url) {
   }
   else if (t.indexOf('<!-- File brief.tem : Brief View Template File ') >= 0) {
     ele.innerHTML = LANG['MULTIPLE'];
+    expandMultipleResult(ele, t);
   }
   else {
     ele.innerHTML = LANG['UNKNOWN'];
@@ -299,6 +426,12 @@ function onLoadSearch(ele, t, url) {
   ele.target = '_blank';
 }
 
+document.body.addEventListener('click', function(e) {
+  var d = document.getElementById('anobii-with-hkpl-layer');
+  if (d) {
+    d.style.display = 'none';
+  }
+}, false);
 processBookList();
 
 })();
