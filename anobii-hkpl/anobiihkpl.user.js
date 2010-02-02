@@ -1,4 +1,4 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name           aNobii with HKPL
 // @version        2
 // @namespace      http://ellab.org/
@@ -148,6 +148,7 @@ function processBookList() {
       search.innerHTML = LANG['SEARCH'];
       search.href = 'javascript:void(0)';
       search.setAttribute('name', bookName);
+      search.setAttribute('id', 'anobii-with-hkpl-search-id-' + i);
       search.addEventListener('click', function(e) {
         if (e.target.getAttribute('already-visited')) {
           e.stopPropagation();
@@ -202,7 +203,7 @@ function onClickSearch(ele, isRetry) {
   var urlPrefix = g_domainPrefix + '/webpac_cjk/wgbroker.exe?' + g_sessionId + '+-access+top.books-page+search+open+BT+';
   var urlSuffix = '%23%23A:NONE%23NONE:NONE::%23%23';
   var url = '';
-  
+
   if (ele.getAttribute('name')) {
     var big5url = '';
     var utf8array = encodeUTF8(ele.getAttribute('name'));
@@ -266,6 +267,24 @@ function calcOffsetLeft(ele) {
   return left;
 }
 
+function getElementsByClassName(className, node) {
+  if (!className) {
+    return [];
+  }
+  node = node || document;
+  if (node.getElementsByClassName) {
+    return node.getElementsByClassName(className);
+  }
+  else {
+    var res = document.evaluate(".//*[contains(concat(' ', @class, ' '), ' " + className + " ')]", node, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+    var result = [];
+    for (var i=0;i<res.snapshotLength;i++) {
+      result.push(res.snapshotItem(i));
+    }
+    return result;
+  }
+}
+
 function expandMultipleResult(ele, t) {
   var res = t.match(/<A HREF=\"\/webpac_cjk\/wgbroker\.exe\?[^\"]+search\+select[^\"]+\">/gi);
   if (res) {
@@ -283,7 +302,7 @@ function expandMultipleResult(ele, t) {
       // remove trailing tr
       if (s.indexOf('</TR>') >= 0) s = extract(s, '', '</TR>');
       if (s.indexOf('<TR') >= 0) s = extract(s, '', '<TR');
-      
+
       s = '<td>' + s + '</td>';
       // cleanup td attr
       s = s.replace(/<td[^\>]*>/ig, '<td>');
@@ -294,11 +313,11 @@ function expandMultipleResult(ele, t) {
       s = s.replace(/<td>([^<]+)<\/td>/i, '<td><a href="' + g_domainPrefix + searchUrl + '" target="_blank">$1</a></td>');
       // add the search inline button after the first cell
       s = s.replace(/<\/td>/i, '</td><td><a style="white-space:nowrap; color:#6a0;" class="anobii-with-hkpl-search-inline" href="javascript:void(0);"' +
-                               ' searchurl="' + searchUrl + '">' + 
+                               ' searchurl="' + searchUrl + '">' +
                                LANG['SEARCH_INLINE'] + '</a></td>');
       // set td style
       s = s.replace(/<td>/ig, '<td style="border:1px solid grey; padding:2px 4px 2px 4px; text-align:left;">');
-      
+
       html += '<tr>' + s + '</tr>';
     }
     if (html) {
@@ -312,30 +331,26 @@ function expandMultipleResult(ele, t) {
       var left = calcOffsetLeft(ele);
       left = left + shadowWidth + ele.offsetWidth - divWidth - divBorder * 2 - divPadding * 2;
 
-      var divShadow = document.getElementById('anobii-with-hkpl-layer');
-      var divContent = document.getElementById('anobii-with-hkpl-layer-content');
-      if (!divShadow || !divContent) {
-        divShadow = document.createElement('div');
-        divShadow.setAttribute('id', 'anobii-with-hkpl-layer');
-        divShadow.setAttribute('style', 
-                               'display:none; position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
-        divContent = document.createElement('div');
-        divContent.setAttribute('id', 'anobii-with-hkpl-layer-content');
-        divContent.setAttribute('style', 
-                                'width:' + divWidth + 'px; padding:' + divPadding + 'px; background-color:white;' + 
-                                'margin:-' + shadowWidth + 'px ' + shadowWidth + 'px ' + shadowWidth + 'px -' + shadowWidth + 'px;' +
-                                'border:' + divBorder + 'px solid grey;');
-        divShadow.appendChild(divContent);
-        document.body.appendChild(divShadow);
-      }
+      var searchId = ele.getAttribute('id').match(/\d$/)[0];
+      divShadow = document.createElement('div');
+      divShadow.setAttribute('id', 'anobii-with-hkpl-multiple-id-' + searchId);
+      divShadow.className = 'anobii-with-hkpl-multiple-layer';
+      divShadow.setAttribute('style',
+                             'position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
       divShadow.style.left = left + 'px';
       divShadow.style.top = top + 'px';
-      divContent.innerHTML = html;     
+
+      divContent = document.createElement('div');
+      divContent.setAttribute('style',
+                              'width:' + divWidth + 'px; padding:' + divPadding + 'px; background-color:white;' +
+                              'margin:-' + shadowWidth + 'px ' + shadowWidth + 'px ' + shadowWidth + 'px -' + shadowWidth + 'px;' +
+                              'border:' + divBorder + 'px solid grey;');
+      divContent.innerHTML = html;
 
       // attach the click event of search link
-      var searchRes = document.evaluate(".//a[@class='anobii-with-hkpl-search-inline']", divContent, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
-      for (var i=0;i<searchRes.snapshotLength;i++) {
-        var search = searchRes.snapshotItem(i);
+      var searchRes = getElementsByClassName('anobii-with-hkpl-search-inline', divContent);
+      for (var i=0;i<searchRes.length;i++) {
+        var search = searchRes[i];
         search.addEventListener('click', function(e) {
           if (e.target.getAttribute('already-visited')) {
             e.stopPropagation();
@@ -348,7 +363,22 @@ function expandMultipleResult(ele, t) {
         }, false);
       }
 
-      divShadow.style.display = '';
+      ele.addEventListener('mouseover', function(e) {
+        var searchId = e.target.getAttribute('id');
+        if (searchId) {
+          searchId = searchId.match(/\d$/);
+          if (searchId) {
+            searchId = searchId[0];
+            var multipleLayer = document.getElementById('anobii-with-hkpl-multiple-id-' + searchId);
+            if (multipleLayer) {
+              multipleLayer.style.display = '';
+            }
+          }
+        }
+      }, false);
+
+      divShadow.appendChild(divContent);
+      document.body.appendChild(divShadow);
     }
   }
 }
@@ -427,11 +457,12 @@ function onLoadSearch(ele, t, url) {
 }
 
 document.body.addEventListener('click', function(e) {
-  var d = document.getElementById('anobii-with-hkpl-layer');
-  if (d) {
-    d.style.display = 'none';
+  var res = getElementsByClassName('anobii-with-hkpl-multiple-layer');
+  for (var i=0;i<res.length;i++) {
+    res[i].style.display = 'none';
   }
 }, false);
+
 processBookList();
 
 })();
