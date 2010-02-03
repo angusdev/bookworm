@@ -55,8 +55,8 @@ var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://libcat.hkpl.gov.hk';
 var g_sessionId = utils.getSession(SESSION_ID_KEY);
 var g_loading = false;
-var LOADING_IMG = GM_getResourceURL('loading');
-var SHADOWALPHA_IMG = GM_getResourceURL('shadowAlpha');
+var LOADING_IMG = org.ellab.utils.isChrome?chrome.extension.getURL('loading.gif'):GM_getResourceURL('loading');
+var SHADOWALPHA_IMG = org.ellab.utils.isChrome?chrome.extension.getURL('shadowAlpha.png'):GM_getResourceURL('shadowAlpha');
 
 function decimalToHex(d, padding) {
   var hex = Number(d).toString(16);
