@@ -3,7 +3,7 @@
 // @version        2
 // @namespace      http://ellab.org/
 // @description    Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result
-// @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-1/ellab-utils.js
+// @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-2/ellab-utils.js
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-big5-1/ellab-big5.js
 // @resource       loading loading.gif
 // @resource       shadowAlpha shadowAlpha.png
@@ -55,8 +55,8 @@ var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://libcat.hkpl.gov.hk';
 var g_sessionId = utils.getSession(SESSION_ID_KEY);
 var g_loading = false;
-var LOADING_IMG = org.ellab.utils.isChrome?chrome.extension.getURL('loading.gif'):GM_getResourceURL('loading');
-var SHADOWALPHA_IMG = org.ellab.utils.isChrome?chrome.extension.getURL('shadowAlpha.png'):GM_getResourceURL('shadowAlpha');
+var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
+var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
 
 function decimalToHex(d, padding) {
   var hex = Number(d).toString(16);
@@ -249,42 +249,6 @@ function onClickSearch(ele, isRetry) {
   }
 }
 
-function calcOffsetTop(ele) {
-  var top = 0;
-  do {
-    if (!isNaN(ele.offsetTop)) top += ele.offsetTop;
-  } while (ele = ele.offsetParent);
-
-  return top;
-}
-
-function calcOffsetLeft(ele) {
-  var left = 0;
-  do {
-    if (!isNaN(ele.offsetLeft)) left += ele.offsetLeft;
-  } while (ele = ele.offsetParent);
-
-  return left;
-}
-
-function getElementsByClassName(className, node) {
-  if (!className) {
-    return [];
-  }
-  node = node || document;
-  if (node.getElementsByClassName) {
-    return node.getElementsByClassName(className);
-  }
-  else {
-    var res = document.evaluate(".//*[contains(concat(' ', @class, ' '), ' " + className + " ')]", node, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
-    var result = [];
-    for (var i=0;i<res.snapshotLength;i++) {
-      result.push(res.snapshotItem(i));
-    }
-    return result;
-  }
-}
-
 function expandMultipleResult(ele, t) {
   var res = t.match(/<A HREF=\"\/webpac_cjk\/wgbroker\.exe\?[^\"]+search\+select[^\"]+\">/gi);
   if (res) {
@@ -326,9 +290,9 @@ function expandMultipleResult(ele, t) {
       var divBorder = 0;
       var divPadding = 0;
       var shadowWidth = 6;
-      var top = calcOffsetTop(ele);
+      var top = utils.calcOffsetTop(ele);
       top += ele.offsetHeight + shadowWidth + 6;
-      var left = calcOffsetLeft(ele);
+      var left = utils.calcOffsetLeft(ele);
       left = left + shadowWidth + ele.offsetWidth - divWidth - divBorder * 2 - divPadding * 2;
 
       var searchId = ele.getAttribute('id').match(/\d$/)[0];
@@ -348,7 +312,7 @@ function expandMultipleResult(ele, t) {
       divContent.innerHTML = html;
 
       // attach the click event of search link
-      var searchRes = getElementsByClassName('anobii-with-hkpl-search-inline', divContent);
+      var searchRes = utils.getElementsByClassName('anobii-with-hkpl-search-inline', divContent);
       for (var i=0;i<searchRes.length;i++) {
         var search = searchRes[i];
         search.addEventListener('click', function(e) {
@@ -457,7 +421,7 @@ function onLoadSearch(ele, t, url) {
 }
 
 document.body.addEventListener('click', function(e) {
-  var res = getElementsByClassName('anobii-with-hkpl-multiple-layer');
+  var res = utils.getElementsByClassName('anobii-with-hkpl-multiple-layer');
   for (var i=0;i<res.length;i++) {
     res[i].style.display = 'none';
   }
