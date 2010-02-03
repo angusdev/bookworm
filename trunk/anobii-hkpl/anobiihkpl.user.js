@@ -185,18 +185,18 @@ function processBookList() {
   }
 }
 
-function onClickSearch(ele, isRetry) {
+function onClickSearch(searchLink, isRetry) {
   // isRetry is true when sessionId is null or not valid
   if (!isRetry && g_loading) {
     return;
   }
 
-  ele.setAttribute('already-visited', 'true');
+  searchLink.setAttribute('already-visited', 'true');
   g_loading = true;
 
-  ele.innerHTML = '<img src="' + LOADING_IMG + '" border="0"/>';
+  searchLink.innerHTML = '<img src="' + LOADING_IMG + '" border="0"/>';
   if (!g_sessionId) {
-    getHKPLSessionId (function() { onClickSearch(ele, true); });
+    getHKPLSessionId (function() { onClickSearch(searchLink, true); });
     return;
   }
 
@@ -204,9 +204,9 @@ function onClickSearch(ele, isRetry) {
   var urlSuffix = '%23%23A:NONE%23NONE:NONE::%23%23';
   var url = '';
 
-  if (ele.getAttribute('name')) {
+  if (searchLink.getAttribute('name')) {
     var big5url = '';
-    var utf8array = encodeUTF8(ele.getAttribute('name'));
+    var utf8array = encodeUTF8(searchLink.getAttribute('name'));
     for (var i=0;i<utf8array.length;i++) {
       if (utf8array[i].length == 6) {
         var big5 = org.ellab.big5.utf82big5(utf8array[i]);
@@ -228,8 +228,8 @@ function onClickSearch(ele, isRetry) {
     }
     url = urlPrefix + big5url + urlSuffix;
   }
-  else if (ele.getAttribute('searchurl')) {
-    url = g_domainPrefix + ele.getAttribute('searchurl');
+  else if (searchLink.getAttribute('searchurl')) {
+    url = g_domainPrefix + searchLink.getAttribute('searchurl');
   }
   if (url) {
     org.ellab.utils.crossOriginXMLHttpRequest({
@@ -238,18 +238,46 @@ function onClickSearch(ele, isRetry) {
       overrideMimeType: 'text/html; charset=big5',
       onload: function(t) {
         g_loading = false;
-        onLoadSearch(ele, t.responseText, url);
+        onLoadSearch(searchLink, t.responseText, url);
       }
     });
   }
   else {
     // make a fake response to report error
     g_loading = false;
-    onLoadSearch(ele, '', url);
+    onLoadSearch(searchLink, '', url);
   }
 }
 
-function expandMultipleResult(ele, t) {
+function moveMultipleResultLayer(divShadow, searchLink) {
+  var minLeftMargin = 10;
+  var minWidth = 300;
+  var divWidth = 500;
+  var divBorder = 0;
+  var divPadding = 0;
+  var shadowWidth = 6;
+  var top = utils.calcOffsetTop(searchLink);
+  top += searchLink.offsetHeight + shadowWidth + 6; // hardcode a vertical gap of 6px
+  var left = utils.calcOffsetLeft(searchLink);
+  left = left + shadowWidth + searchLink.offsetWidth - divWidth - divBorder * 2 - divPadding * 2;
+  if (left < minLeftMargin) {
+    divWidth = Math.max(minWidth, divWidth - (minLeftMargin - left));
+    left = minLeftMargin;
+  }
+  
+  divShadow.style.left = left + 'px';
+  divShadow.style.top = top + 'px';
+  
+  var divContent = divShadow.getElementsByTagName('DIV')[0];
+  if (divContent) {
+      divContent.setAttribute('style',
+                              'width:' + divWidth + 'px; padding:' + divPadding + 'px; background-color:white;' +
+                              'margin:-' + shadowWidth + 'px ' + shadowWidth + 'px ' + shadowWidth + 'px -' + shadowWidth + 'px;' +
+                              'border:' + divBorder + 'px solid grey;');
+  }
+}
+
+function expandMultipleResult(searchLink, t) {
   var res = t.match(/<A HREF=\"\/webpac_cjk\/wgbroker\.exe\?[^\"]+search\+select[^\"]+\">/gi);
   if (res) {
     var html = '';
@@ -286,29 +314,15 @@ function expandMultipleResult(ele, t) {
     }
     if (html) {
       html = '<table width="100%">' + html + '</table>';
-      var divWidth = 500;
-      var divBorder = 0;
-      var divPadding = 0;
-      var shadowWidth = 6;
-      var top = utils.calcOffsetTop(ele);
-      top += ele.offsetHeight + shadowWidth + 6;
-      var left = utils.calcOffsetLeft(ele);
-      left = left + shadowWidth + ele.offsetWidth - divWidth - divBorder * 2 - divPadding * 2;
 
-      var searchId = ele.getAttribute('id').match(/\d$/)[0];
+      var searchId = searchLink.getAttribute('id').match(/\d$/)[0];
       divShadow = document.createElement('div');
       divShadow.setAttribute('id', 'anobii-with-hkpl-multiple-id-' + searchId);
       divShadow.className = 'anobii-with-hkpl-multiple-layer';
       divShadow.setAttribute('style',
                              'position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
-      divShadow.style.left = left + 'px';
-      divShadow.style.top = top + 'px';
 
       divContent = document.createElement('div');
-      divContent.setAttribute('style',
-                              'width:' + divWidth + 'px; padding:' + divPadding + 'px; background-color:white;' +
-                              'margin:-' + shadowWidth + 'px ' + shadowWidth + 'px ' + shadowWidth + 'px -' + shadowWidth + 'px;' +
-                              'border:' + divBorder + 'px solid grey;');
       divContent.innerHTML = html;
 
       // attach the click event of search link
@@ -327,7 +341,7 @@ function expandMultipleResult(ele, t) {
         }, false);
       }
 
-      ele.addEventListener('mouseover', function(e) {
+      searchLink.addEventListener('mouseover', function(e) {
         var searchId = e.target.getAttribute('id');
         if (searchId) {
           searchId = searchId.match(/\d$/);
@@ -335,6 +349,7 @@ function expandMultipleResult(ele, t) {
             searchId = searchId[0];
             var multipleLayer = document.getElementById('anobii-with-hkpl-multiple-id-' + searchId);
             if (multipleLayer) {
+              moveMultipleResultLayer(multipleLayer, e.target);
               multipleLayer.style.display = '';
             }
           }
@@ -342,20 +357,21 @@ function expandMultipleResult(ele, t) {
       }, false);
 
       divShadow.appendChild(divContent);
+      moveMultipleResultLayer(divShadow, searchLink);
       document.body.appendChild(divShadow);
     }
   }
 }
 
-function onLoadSearch(ele, t, url) {
+function onLoadSearch(searchLink, t, url) {
   if (t.indexOf('An Error Occured While Submitting Your Request to WebPAC') >= 0) {
     // session id not valid, need to retry
-    getHKPLSessionId (function() { onClickSearch(ele, true); });
+    getHKPLSessionId (function() { onClickSearch(searchLink, true); });
     return;
   }
 
   if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
-    ele.innerHTML = LANG['NOTFOUND'];;
+    searchLink.innerHTML = LANG['NOTFOUND'];;
   }
   else if (t.indexOf('<!-- File long.tem ') >= 0) {
     var checker = extract(t, '<SCRIPT>codedLibNames[libNameBlock++]="', '";</SCRIPT>');
@@ -402,22 +418,22 @@ function onLoadSearch(ele, t, url) {
           }
         }
       }
-      ele.innerHTML = LANG['FOUND1'] + total + LANG['FOUND2'] + onshelfTotal + LANG['FOUND3'];
+      searchLink.innerHTML = LANG['FOUND1'] + total + LANG['FOUND2'] + onshelfTotal + LANG['FOUND3'];
     }
     else {
-      ele.innerHTML = LANG['PROCESSING'];
+      searchLink.innerHTML = LANG['PROCESSING'];
     }
   }
   else if (t.indexOf('<!-- File brief.tem : Brief View Template File ') >= 0) {
-    ele.innerHTML = LANG['MULTIPLE'];
-    expandMultipleResult(ele, t);
+    searchLink.innerHTML = LANG['MULTIPLE'];
+    expandMultipleResult(searchLink, t);
   }
   else {
-    ele.innerHTML = LANG['UNKNOWN'];
+    searchLink.innerHTML = LANG['UNKNOWN'];
   }
 
-  ele.href = url;
-  ele.target = '_blank';
+  searchLink.href = url;
+  searchLink.target = '_blank';
 }
 
 document.body.addEventListener('click', function(e) {
