@@ -1,6 +1,6 @@
 {
   "name": "aNobii with HKPL",
-  "version": "1",
+  "version": "2",
   "description": "Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result",
   "background_page": "background.html",
   "content_scripts": [
