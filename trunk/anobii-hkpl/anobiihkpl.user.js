@@ -5,8 +5,8 @@
 // @description    Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-2/ellab-utils.js
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-big5-1/ellab-big5.js
-// @resource       loading loading.gif
-// @resource       shadowAlpha shadowAlpha.png
+// @resource       loading http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-2/loading.gif
+// @resource       shadowAlpha http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-2/shadowAlpha.png
 // @include        http://www.anobii.com/books/*
 // @include        http://www.anobii.com/wishlist*
 // @include        http://www.anobii.com/*/books*
@@ -21,13 +21,13 @@
 Author: Angus http://angusdev.mysinablog.com/
               http://angusdev.blogspot.com/
               http://twitter.com/angusdev
-Date:   2010-01-31
+Date:   2010-03-03
 
 Version history:
-2                   Issue #3 Handle multiple results from hkpl
+2    03-Mar-2010    Issue #3 Handle multiple results from hkpl
                     Issue #4 Search books with punctuation in their name usually return no result from HKPL
                     Issue #7 Search button does not show up in book detail page after anobii revamp
-1    10-Nov-2008    Initial release
+1    10-Nov-2009    Initial release
 */
 
 (function(){
