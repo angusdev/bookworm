@@ -38,18 +38,29 @@ var extract = org.ellab.utils.extract;
 var LANG = new Array();
 LANG['SEARCH'] = '搜尋公共圖書館';
 LANG['SEARCH_INLINE'] = '搜尋';
+LANG['SEARCH_PREV'] = '上一頁';
+LANG['SEARCH_NEXT'] = '下一頁';
 LANG['NOTFOUND'] = '沒有紀錄';
 LANG['FOUND1'] = '共 ';
 LANG['FOUND2'] = ' 本，';
 LANG['FOUND3'] = ' 本在館內架上';
 LANG['MULTIPLE'] = '多於一個結果';
 LANG['PROCESSING'] = '正在處理/準備註銷';
+LANG['ERROR'] = '錯誤';
 LANG['UNKNOWN'] = '錯誤';
 
 var HKPL_TEXT_ON_SHELF = '館內架上';
 var HKPL_TEXT_CHECKED_OUT = '借出';
 var HKPL_TEXT_IN_TRANSIT = '轉移中';
 var HKPL_TEXT_CLOSED_STACK = '閉架';
+
+var SEARCH_LINK_ID_PREFIX = 'anobii-with-hkpl-search-id-';
+var MULTI_RESULT_LAYER_ID_PREFIX = 'anobii-with-hkpl-multiple-id-';
+var MULTI_RESULT_PREV_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-prev-';
+var MULTI_RESULT_NEXT_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-next-';
+
+var MULTI_RESULT_LAYER_CLASS = 'anobii-with-hkpl-multiple-layer';
+var MULTI_RESULT_SEARCH_INLINE_CLASS = 'anobii-with-hkpl-search-inline';
 
 var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://libcat.hkpl.gov.hk';
@@ -148,7 +159,7 @@ function processBookList() {
       search.innerHTML = LANG['SEARCH'];
       search.href = 'javascript:void(0)';
       search.setAttribute('name', bookName);
-      search.setAttribute('id', 'anobii-with-hkpl-search-id-' + i);
+      search.setAttribute('id', SEARCH_LINK_ID_PREFIX + i);
       search.addEventListener('click', function(e) {
         if (e.target.getAttribute('already-visited')) {
           e.stopPropagation();
@@ -264,10 +275,10 @@ function moveMultipleResultLayer(divShadow, searchLink) {
     divWidth = Math.max(minWidth, divWidth - (minLeftMargin - left));
     left = minLeftMargin;
   }
-  
+
   divShadow.style.left = left + 'px';
   divShadow.style.top = top + 'px';
-  
+
   var divContent = divShadow.getElementsByTagName('DIV')[0];
   if (divContent) {
       divContent.setAttribute('style',
@@ -304,21 +315,50 @@ function expandMultipleResult(searchLink, t) {
       // convert book name to direct link
       s = s.replace(/<td>([^<]+)<\/td>/i, '<td><a href="' + g_domainPrefix + searchUrl + '" target="_blank">$1</a></td>');
       // add the search inline button after the first cell
-      s = s.replace(/<\/td>/i, '</td><td><a style="white-space:nowrap; color:#6a0;" class="anobii-with-hkpl-search-inline" href="javascript:void(0);"' +
+      s = s.replace(/<\/td>/i, '</td><td><a style="white-space:nowrap; color:#6a0;" class="' + MULTI_RESULT_SEARCH_INLINE_CLASS + '" href="javascript:void(0);"' +
                                ' searchurl="' + searchUrl + '">' +
                                LANG['SEARCH_INLINE'] + '</a></td>');
-      // set td style
-      s = s.replace(/<td>/ig, '<td style="border:1px solid grey; padding:2px 4px 2px 4px; text-align:left;">');
 
       html += '<tr>' + s + '</tr>';
     }
     if (html) {
+      var searchLinkId = searchLink.getAttribute('id');
+      var searchId = searchLinkId.match(/\d$/)[0];
+
+      // add prev/next page link if needed
+      var prevPageRes = t.match(/prev_page_value=\"([^\"]+)\"/);
+      var nextPageRes = t.match(/next_page_value=\"([^\"]+)\"/);
+      if (prevPageRes || nextPageRes) {
+         function createSearchInlineLink(id, url, text) {
+           return '<a style="white-space:nowrap; color:#6a0;" class="' + MULTI_RESULT_SEARCH_INLINE_CLASS + '" href="javascript:void(0);"' +
+                  (id?' id="' + id + '"':'') +
+                  ' searchurl="' + url + '">' + text + '</a>';
+         }
+         var prevHTML = prevPageRes?createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, prevPageRes[1], LANG['SEARCH_PREV']):'';
+         var nextHTML = nextPageRes?createSearchInlineLink(MULTI_RESULT_NEXT_LINK_ID_PREFIX + searchId, nextPageRes[1], LANG['SEARCH_NEXT']):'';
+         if (prevHTML && nextHTML) {
+           // add the space separater
+           nextHTML = ' ' + nextHTML;
+         }
+         html = html + '<tr><td colspan="4">' + prevHTML + nextHTML + '</td></tr>';
+      }
+
+      // set td style
+      html = html.replace(/<td([^>]*)>/ig, '<td$1 style="border:1px solid grey; padding:2px 4px 2px 4px; text-align:left;">');
+
       html = '<table width="100%">' + html + '</table>';
 
-      var searchId = searchLink.getAttribute('id').match(/\d$/)[0];
+      // for some cases searchLink is not the original search link of that book (e.g. searchLink is 'Next')
+      var originalSearchLink = document.getElementById(SEARCH_LINK_ID_PREFIX + searchId);
+      // remove previous div if exists (e.g. searchLink is 'Next')
+      var divShadow = document.getElementById(MULTI_RESULT_LAYER_ID_PREFIX + searchId);
+      if (divShadow) {
+        divShadow.parentNode.removeChild(divShadow);
+        divShadow = null;
+      }
       divShadow = document.createElement('div');
-      divShadow.setAttribute('id', 'anobii-with-hkpl-multiple-id-' + searchId);
-      divShadow.className = 'anobii-with-hkpl-multiple-layer';
+      divShadow.setAttribute('id', MULTI_RESULT_LAYER_ID_PREFIX + searchId);
+      divShadow.className = MULTI_RESULT_LAYER_CLASS;
       divShadow.setAttribute('style',
                              'position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
 
@@ -326,7 +366,7 @@ function expandMultipleResult(searchLink, t) {
       divContent.innerHTML = html;
 
       // attach the click event of search link
-      var searchRes = utils.getElementsByClassName('anobii-with-hkpl-search-inline', divContent);
+      var searchRes = utils.getElementsByClassName(MULTI_RESULT_SEARCH_INLINE_CLASS, divContent);
       for (var i=0;i<searchRes.length;i++) {
         var search = searchRes[i];
         search.addEventListener('click', function(e) {
@@ -341,23 +381,25 @@ function expandMultipleResult(searchLink, t) {
         }, false);
       }
 
-      searchLink.addEventListener('mouseover', function(e) {
-        var searchId = e.target.getAttribute('id');
-        if (searchId) {
-          searchId = searchId.match(/\d$/);
+      if (searchLinkId.match('^' + SEARCH_LINK_ID_PREFIX)) {
+        searchLink.addEventListener('mouseover', function(e) {
+          var searchId = e.target.getAttribute('id');
           if (searchId) {
-            searchId = searchId[0];
-            var multipleLayer = document.getElementById('anobii-with-hkpl-multiple-id-' + searchId);
-            if (multipleLayer) {
-              moveMultipleResultLayer(multipleLayer, e.target);
-              multipleLayer.style.display = '';
+            searchId = searchId.match(/\d$/);
+            if (searchId) {
+              searchId = searchId[0];
+              var multipleLayer = document.getElementById(MULTI_RESULT_LAYER_ID_PREFIX + searchId);
+              if (multipleLayer) {
+                moveMultipleResultLayer(multipleLayer, e.target);
+                multipleLayer.style.display = '';
+              }
             }
           }
-        }
-      }, false);
+        }, false);
+      }
 
       divShadow.appendChild(divContent);
-      moveMultipleResultLayer(divShadow, searchLink);
+      moveMultipleResultLayer(divShadow, originalSearchLink);
       document.body.appendChild(divShadow);
     }
   }
@@ -370,8 +412,11 @@ function onLoadSearch(searchLink, t, url) {
     return;
   }
 
-  if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
-    searchLink.innerHTML = LANG['NOTFOUND'];;
+  if (t.indexOf('ERRORError retrieving record') >= 0) {
+    searchLink.innerHTML = LANG['ERROR'];;
+  }
+  else if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
+    searchLink.innerHTML = LANG['NOTFOUND'];
   }
   else if (t.indexOf('<!-- File long.tem ') >= 0) {
     var checker = extract(t, '<SCRIPT>codedLibNames[libNameBlock++]="', '";</SCRIPT>');
@@ -437,7 +482,7 @@ function onLoadSearch(searchLink, t, url) {
 }
 
 document.body.addEventListener('click', function(e) {
-  var res = utils.getElementsByClassName('anobii-with-hkpl-multiple-layer');
+  var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
   for (var i=0;i<res.length;i++) {
     res[i].style.display = 'none';
   }
