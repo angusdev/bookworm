@@ -54,6 +54,13 @@ var HKPL_TEXT_CHECKED_OUT = '借出';
 var HKPL_TEXT_IN_TRANSIT = '轉移中';
 var HKPL_TEXT_CLOSED_STACK = '閉架';
 
+var ONSHELF_LIB_REMOVE_REGEXP= [
+  [/公共圖書館/g, ''], 
+  [/香港中央圖書館/g, '中央'], 
+  [/&LTscript>processData%28'.*'%29;&LT\/script>/g, function(m) { return eval('"\\u'+m.match(/%28'(.*)'%29/)[1]+'";'); } ],
+  [/%[a-zA-Z0-9]{2}/g, function(m) { return unescape(m); } ]
+];
+
 var SEARCH_LINK_ID_PREFIX = 'anobii-with-hkpl-search-id-';
 var MULTI_RESULT_LAYER_ID_PREFIX = 'anobii-with-hkpl-multiple-id-';
 var MULTI_RESULT_PREV_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-prev-';
@@ -405,6 +412,47 @@ function expandMultipleResult(searchLink, t) {
   }
 }
 
+// HKPL's encoding algorithm is like a compression algorithm:
+// (=aaa,bbb|ccc|,|ddd)(2x3,1,3x2)|eee|fff|(2,1)
+// where everything inside () is for encoding, others will be directly copy to the final string
+// for strings inside (), starts with '=' is to define the repeating element,
+// others control the sequence of the elements, e.g. 3x2 means the second element will appears 3 times
+// and they are comma separated
+// the example above will expand to :
+// bbb|ccc|bbb|ccc|bbb|ccc|aaa|ddd|ddd|ddd|eee|fff|bbb|ccc|aaa
+// ..........(2x3).........(1)....(3x2)...|eee|fff|..(2)...(1)
+function decodeHKPLFunnyEncoding(s) {
+  var defstr = s.match(/\(=([^\)]*)\)/);
+  var def = new Array();
+  if (defstr) {
+    defstr = defstr[1];
+    def = defstr.split(',');
+  }
+
+  // remove the definition block
+  s = s.replace(/\(=([^\)]*)\)/, '');
+
+  s = s.replace(/\([^\)]+\)/g, function(matched) {
+    matched = matched.replace('(', '').replace(')', '');
+    var splitted = matched.split(',');
+    var result = '';
+    for (var j=0 ; j<splitted.length ; j++) {
+      var splitted2 = splitted[j].split('x');
+      if (splitted2.length > 1) {
+        for (var k=0 ; k<parseInt(splitted2[0], 10) ; k++) {
+          result += def[parseInt(splitted2[1]) - 1];
+        }
+      }
+      else {
+        result += def[parseInt(splitted2[0]) - 1];
+      }
+    }
+    return result;
+  });
+
+  return s;
+}
+
 function onLoadSearch(searchLink, t, url) {
   if (t.indexOf('An Error Occured While Submitting Your Request to WebPAC') >= 0) {
     // session id not valid, need to retry
@@ -419,51 +467,59 @@ function onLoadSearch(searchLink, t, url) {
     searchLink.innerHTML = LANG['NOTFOUND'];
   }
   else if (t.indexOf('<!-- File long.tem ') >= 0) {
-    var checker = extract(t, '<SCRIPT>codedLibNames[libNameBlock++]="', '";</SCRIPT>');
-    if (checker) {
-      var total = 0;
+    var clnRes = t.match(/<SCRIPT>codedLibNames\[libNameBlock\+\+\]=\"([^\"]+)\";<\/SCRIPT>/g);
+    if (clnRes && clnRes.length) {
+      var cln = [];
+      var cs = [];
+      for (var i=0 ; i<clnRes.length ; i++) {
+        var codedLibNames = clnRes[i];
+        codedLibNames = extract(codedLibNames, '<SCRIPT>codedLibNames[libNameBlock++]="', '";</SCRIPT>');
+        codedLibNames = decodeHKPLFunnyEncoding(codedLibNames);
+        cln = cln.concat(codedLibNames.split('|'));
+      }
+      var csRes = t.match(/<SCRIPT>codedStatuses\[libCollBlock\+\+\]=\"([^\"]+)\";<\/SCRIPT>/g);
+      for (var i=0 ; csRes && i<csRes.length ; i++) {
+        var codedStatuses = csRes[i];
+        codedStatuses = extract(codedStatuses, '<SCRIPT>codedStatuses[libCollBlock++]="', '";</SCRIPT>');
+        codedStatuses = decodeHKPLFunnyEncoding(codedStatuses);
+        cs = cs.concat(codedStatuses.split('|'));
+      }
+
+      var total = cs.length;
       var onshelfTotal = 0;
-      var res = t.match(/<SCRIPT>codedStatuses\[libCollBlock\+\+\]=\"([^\"]*)\";<\/SCRIPT>/g);
-      for (var i=0 ; res && i<res.length ; i++) {
-        var s = res[i];
-        s = extract(s, '<SCRIPT>codedStatuses[libCollBlock++]="', '";</SCRIPT>');
-        var defstr = s.match(/\(=([^\)]*)\)/);
-        var def = new Array();
-        if (defstr) {
-          defstr = defstr[1];
-          def = defstr.split(',');
-        }
-
-        s = s.replace(/\(=([^\)]*)\)/, '');
-        s = s.replace(/\([^\)]+\)/g, function(matched) {
-          matched = matched.replace('(', '').replace(')', '');
-          var splitted = matched.split(',');
-          var result = '';
-          for (var j=0 ; j<splitted.length ; j++) {
-            var splitted2 = splitted[j].split('x');
-            if (splitted2.length > 1) {
-              for (var k=0 ; k<parseInt(splitted2[0], 10) ; k++) {
-                result += def[parseInt(splitted2[1]) - 1];
-              }
+      var onshelfLib = [];
+      for (var i=0 ; i<cs.length ; i++) {
+        if (cs[i] == HKPL_TEXT_ON_SHELF) {
+          ++onshelfTotal;
+          if (i<cln.length) {
+            var libname = cln[i];
+            for (var j=0 ; j<ONSHELF_LIB_REMOVE_REGEXP.length ; j++) {
+              libname = libname.replace(ONSHELF_LIB_REMOVE_REGEXP[j][0], ONSHELF_LIB_REMOVE_REGEXP[j][1]);
             }
-            else {
-              result += def[parseInt(splitted2[0]) - 1];
-            }
-          }
-          return result;
-        });
-
-        if (s) {
-          var splitted = s.split('|');
-          total += splitted.length;
-          for (var j=0;j<splitted.length;j++) {
-            if (splitted[j] == HKPL_TEXT_ON_SHELF) {
-              onshelfTotal++;
-            }
+            onshelfLib.push(libname);
           }
         }
       }
       searchLink.innerHTML = LANG['FOUND1'] + total + LANG['FOUND2'] + onshelfTotal + LANG['FOUND3'];
+      
+      if (onshelfLib.length) {
+        var onshelfLibString = onshelfLib[0];
+        var lastItemCount = 1;
+        for (var i=1 ; i<onshelfLib.length ; i++) {
+          if (onshelfLib[i] == onshelfLib[i-1]) {
+            ++lastItemCount;
+          }
+          else {
+            if (lastItemCount > 1) {
+              onshelfLibString += ' (' + lastItemCount + ')';
+              lastItemCount = 1;
+            }
+            onshelfLibString += ', ' + onshelfLib[i];
+          }
+        }
+
+        searchLink.title = onshelfLibString;
+      }
     }
     else {
       searchLink.innerHTML = LANG['PROCESSING'];
