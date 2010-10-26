@@ -1,4 +1,4 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name           aNobii with HKPL
 // @version        2
 // @namespace      http://ellab.org/
@@ -15,6 +15,8 @@
 // @include        http://www.anobii.com/contributors/*
 // @include        http://www.anobii.com/tags/*
 // @include        http://www.anobii.com/news_neighbor*
+// @include        http://libcat.hkpl.gov.hk/webpac_cjk/wgbroker.exe*
+// @include        http://libcat.hkpl.gov.hk/webpac_eng/wgbroker.exe*
 // ==/UserScript==
 
 /*
@@ -537,13 +539,72 @@ function onLoadSearch(searchLink, t, url) {
   searchLink.target = '_blank';
 }
 
-document.body.addEventListener('click', function(e) {
-  var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
-  for (var i=0;i<res.length;i++) {
-    res[i].style.display = 'none';
+function isValidISBN(isbn) {
+  if (isbn && isbn.length == 10) {
+    var total = 0;
+    for (var i=0 ; i<9 ; i++) {
+      total += (i+1) * parseInt(isbn[i], 10);
+    }
+    total = total % 11;
+    return total==10?(isbn[9] == 'X'):(total == parseInt(isbn[9], 10));
   }
-}, false);
+  else if (isbn && isbn.length == 13) {
+    var total = 0;
+    for (var i=0 ; i<12 ; i++) {
+      total += (i%2?3:1) * parseInt(isbn[i], 10);
+    }
+    total = 10 - total % 10;
+    total = total==10?0:total;
+    return total == parseInt(isbn[12], 10);
+  }
+  else {
+    return false;
+  }
+}
 
-processBookList();
+function hkplAddAnobiiLink() {
+  if (document.evaluate("//form[@name='limitHoldings']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue) {
+    // has the Limit Holdings form means it is a book detail page
+    var res = document.evaluate("//td[@valign='top' and not(@width)]", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+    for (var i=0 ; i<res.snapshotLength ; i++) {
+      var td = res.snapshotItem(i);
+      var isbn = td.textContent.match(/^[0-9]{9,13}X?/);
+      if (isbn) {
+        isbn = isbn[0];
+        if (isValidISBN(isbn)) {
+          var loading = document.createElement('img');
+          loading.src = LOADING_IMG;
+          td.appendChild(loading);
+          org.ellab.utils.crossOriginXMLHttpRequest({
+            method: 'GET',
+            url: 'http://www.anobii.com/search?isbn=' + isbn + '&searchAdvance=Search',
+            onload: function(t) {
+              t = extract(t.responseText, '<div id="shelf_wrap" class="list_view">');
+              var img = extract(t, 'src="', '" class="book_cover_');
+              var bookid = extract(t, '<tr id="', '"');
+              //no_cover_small.jpg
+              td.removeChild(loading);
+              td.innerHTML = '<a href="http://www.anobii.com/books/' + bookid + '" target="_blank"><img src="' + img.replace('type=1', 'type=3') + '"/><br/>' + td.innerHTML + '</a>';
+            }
+          });
+        }
+      }
+    }
+  }
+}
+
+if (document.location.href.match(/anobii\.com/)) {
+  document.body.addEventListener('click', function(e) {
+    var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
+    for (var i=0;i<res.length;i++) {
+      res[i].style.display = 'none';
+    }
+  }, false);
+
+  processBookList();
+}
+else if (document.location.href.match(/hkpl\.gov\.hk/)) {
+  hkplAddAnobiiLink();
+}
 
 })();
