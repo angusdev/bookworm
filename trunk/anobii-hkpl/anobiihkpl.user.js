@@ -38,8 +38,8 @@ var utils = org.ellab.utils;
 var extract = org.ellab.utils.extract;
 
 var LANG = new Array();
-LANG['SEARCH'] = '搜尋公共圖書館';
-LANG['SEARCH_INLINE'] = '搜尋';
+LANG['SEARCH'] = '搜尋';
+LANG['SEARCH_HKPL'] = '搜尋公共圖書館';
 LANG['SEARCH_PREV'] = '上一頁';
 LANG['SEARCH_NEXT'] = '下一頁';
 LANG['NOTFOUND'] = '沒有紀錄';
@@ -64,6 +64,7 @@ var ONSHELF_LIB_REMOVE_REGEXP= [
 ];
 
 var SEARCH_LINK_ID_PREFIX = 'anobii-with-hkpl-search-id-';
+var SUPER_SEARCH_LINK_ID_PREFIX = 'anobii-with-hkpl-supersearch-id-';
 var MULTI_RESULT_LAYER_ID_PREFIX = 'anobii-with-hkpl-multiple-id-';
 var MULTI_RESULT_PREV_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-prev-';
 var MULTI_RESULT_NEXT_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-next-';
@@ -77,6 +78,10 @@ var g_sessionId = utils.getSession(SESSION_ID_KEY);
 var g_loading = false;
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
+
+function DEBUG(msg) {
+  //if (console && console.log) console.log(msg);
+}
 
 function decimalToHex(d, padding) {
   var hex = Number(d).toString(16);
@@ -162,23 +167,59 @@ function processBookList() {
     var ele = res.snapshotItem(i);
     var matched = ele.innerHTML.match(/^\s*([^<]+)/);
     if (matched) {
-      var bookName = matched[1].replace(/\s*$/, '');
+      var bookName = matched[1].replace(/^s+/, '').replace(/\s+$/, '');
 
+      // build the super search link in original book name
+      // in super search link, click on a word of the book name will search the partial book name up to that word
+      // first split the book name to different search English word, number or other character
+      var superSearchWords = [];
+      var tmpBookName = utils.decodeHTML(bookName);
+      while (tmpBookName) {
+        var resSearchWord = tmpBookName.match(/^[a-zA-Z0-9]+/);
+        if (resSearchWord) {
+          superSearchWords.push(resSearchWord[0]);
+        }
+        else {
+          resSearchWord = tmpBookName.match(/^\s+/);
+          if (resSearchWord) {
+            superSearchWords.push(resSearchWord[0]);
+          }
+          else {
+            superSearchWords.push(tmpBookName[0]);
+          }
+        }
+        tmpBookName = tmpBookName.substring(superSearchWords[superSearchWords.length-1].length);
+      }
+      
+      var superSearchHTML = '';
+      for (var j=0; j<superSearchWords.length; j++) {
+        if (/^\s+$/.test(superSearchWords[j])) {
+          // space, no link
+          superSearchHTML += superSearchWords[j];
+        }
+        else {
+          superSearchHTML += '<a id="'+ SUPER_SEARCH_LINK_ID_PREFIX + i + '-' + j +'" href="javascript:void(0)">' + utils.encodeHTML(superSearchWords[j]) + '</a>';
+        }
+      }
+      ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
+      for (var j=0; j<superSearchWords.length; j++) {
+        var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + i + '-' + j);
+        if (superSearch) {
+          var searchPhrase = bookName.substring(0, j+1);
+          var searchPhrase = superSearchWords.slice(0, j+1).join('');
+          superSearch.setAttribute('name', searchPhrase);
+          superSearch.setAttribute('title', LANG['SEARCH'] +' ' + searchPhrase);
+          attachSearchLinkListener(superSearch);
+        }
+      }
+      
       var search = document.createElement('a');
-      search.innerHTML = LANG['SEARCH'];
+      search.innerHTML = LANG['SEARCH_HKPL'];
       search.href = 'javascript:void(0)';
       search.setAttribute('name', bookName);
       search.setAttribute('id', SEARCH_LINK_ID_PREFIX + i);
-      search.addEventListener('click', function(e) {
-        if (e.target.getAttribute('already-visited')) {
-          e.stopPropagation();
-        }
-        else {
-          onClickSearch(e.target, false);
-          e.stopPropagation();
-          e.preventDefault();
-        }
-      }, false);
+      attachSearchLinkListener(search);
+      
       switch (displayMode) {
         case DISPLAY_BOOK:
           search.setAttribute('style', 'float:right; color:#6a0;');
@@ -211,6 +252,23 @@ function onClickSearch(searchLink, isRetry) {
     return;
   }
 
+  var originSearchLink = searchLink;
+  
+  if (searchLink.getAttribute('id')) {
+    var searchId = searchLink.getAttribute('id').match('^' + SUPER_SEARCH_LINK_ID_PREFIX + '(\\d+)');
+    if (searchId) {
+      searchId = searchId[1];
+      // check if it is a supersearch link, fake the program to the normal search link so the result will show on the normal search link
+      searchLink = document.getElementById(SEARCH_LINK_ID_PREFIX + searchId);
+      
+      // remove the multi result of previous search
+      var multipleLayer = document.getElementById(MULTI_RESULT_LAYER_ID_PREFIX + searchId);
+      if (multipleLayer) {
+        multipleLayer.parentNode.removeChild(multipleLayer);
+      }
+    }
+  }
+  
   searchLink.setAttribute('already-visited', 'true');
   g_loading = true;
 
@@ -224,9 +282,9 @@ function onClickSearch(searchLink, isRetry) {
   var urlSuffix = '%23%23A:NONE%23NONE:NONE::%23%23';
   var url = '';
 
-  if (searchLink.getAttribute('name')) {
+  if (originSearchLink.getAttribute('name')) {
     var big5url = '';
-    var utf8array = encodeUTF8(searchLink.getAttribute('name'));
+    var utf8array = encodeUTF8(originSearchLink.getAttribute('name'));
     for (var i=0;i<utf8array.length;i++) {
       if (utf8array[i].length == 6) {
         var big5 = org.ellab.big5.utf82big5(utf8array[i]);
@@ -248,9 +306,11 @@ function onClickSearch(searchLink, isRetry) {
     }
     url = urlPrefix + big5url + urlSuffix;
   }
-  else if (searchLink.getAttribute('searchurl')) {
-    url = g_domainPrefix + searchLink.getAttribute('searchurl');
+  else if (originSearchLink.getAttribute('searchurl')) {
+    url = g_domainPrefix + originSearchLink.getAttribute('searchurl');
   }
+
+  DEBUG(url);
   if (url) {
     org.ellab.utils.crossOriginXMLHttpRequest({
       method: 'GET',
@@ -326,7 +386,7 @@ function expandMultipleResult(searchLink, t) {
       // add the search inline button after the first cell
       s = s.replace(/<\/td>/i, '</td><td><a style="white-space:nowrap; color:#6a0;" class="' + MULTI_RESULT_SEARCH_INLINE_CLASS + '" href="javascript:void(0);"' +
                                ' searchurl="' + searchUrl + '">' +
-                               LANG['SEARCH_INLINE'] + '</a></td>');
+                               LANG['SEARCH'] + '</a></td>');
 
       html += '<tr>' + s + '</tr>';
     }
@@ -455,15 +515,32 @@ function decodeHKPLFunnyEncoding(s) {
   return s;
 }
 
+// attache the click event to the search link and super search link
+function attachSearchLinkListener(a) {
+  a.addEventListener('click', function(e) {
+    if (e.target.getAttribute('already-visited')) {
+      e.stopPropagation();
+    }
+    else {
+      onClickSearch(e.target, false);
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, false);
+}
+
 function onLoadSearch(searchLink, t, url) {
+  DEBUG('onLoadSearch');
+  
   if (t.indexOf('An Error Occured While Submitting Your Request to WebPAC') >= 0) {
     // session id not valid, need to retry
+    DEBUG('Get Session ID');
     getHKPLSessionId (function() { onClickSearch(searchLink, true); });
     return;
   }
 
   if (t.indexOf('ERRORError retrieving record') >= 0) {
-    searchLink.innerHTML = LANG['ERROR'];;
+    searchLink.innerHTML = LANG['ERROR'];
   }
   else if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
     searchLink.innerHTML = LANG['NOTFOUND'];
@@ -533,6 +610,9 @@ function onLoadSearch(searchLink, t, url) {
   }
   else {
     searchLink.innerHTML = LANG['UNKNOWN'];
+    // clear the session ID and restart
+    g_sessionId = null;
+    utils.setSession(SESSION_ID_KEY, g_sessionId);
   }
 
   searchLink.href = url;
