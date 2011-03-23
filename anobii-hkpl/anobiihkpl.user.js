@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name           aNobii with HKPL
-// @version        2
+// @name           Bookworm
+// @version        3
 // @namespace      http://ellab.org/
-// @description    Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result
+// @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-2/ellab-utils.js
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-big5-1/ellab-big5.js
 // @resource       loading http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-2/loading.gif
@@ -101,7 +101,7 @@ var DISPLAY_SHELF = 4;
 var g_displayMode = DISPLAY_BOOK;
   
 function DEBUG(msg) {
-  if (console && console.log) console.log(msg);
+  //if (console && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {

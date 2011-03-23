@@ -1,7 +1,7 @@
 {
-  "name": "aNobii with HKPL",
+  "name": "Bookworm",
   "version": "3",
-  "description": "Add ability to search Hong Kong Public Library online catalogue in aNobii pages including shelf, wishlist and search result",
+  "description": "Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw",
   "background_page": "background.html",
   "content_scripts": [
     {
