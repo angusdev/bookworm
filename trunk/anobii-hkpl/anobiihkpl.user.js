@@ -242,11 +242,9 @@ function processBookList() {
         case DISPLAY_GALLERY:
           search.setAttribute('style', 'display:block; color:#6a0;background:none;padding-left:0px;');
           search.className = 'subtitle';
-          var lis = ele.parentNode.parentNode.getElementsByTagName('li');
-          if (lis && lis.length > 0) {
-            lis[lis.length - 1].style.bottom = '-38px';
-            lis[lis.length - 1].appendChild(search);
-          }
+          var li = document.createElement('li');
+          li.appendChild(search);
+          ele.parentNode.parentNode.appendChild(li);
           break;
         default:
           search.setAttribute('style', 'float:right; color:#6a0;');
