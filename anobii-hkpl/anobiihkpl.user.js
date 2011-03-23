@@ -17,6 +17,8 @@
 // @include        http://www.anobii.com/news_neighbor*
 // @include        http://libcat.hkpl.gov.hk/webpac_cjk/wgbroker.exe*
 // @include        http://libcat.hkpl.gov.hk/webpac_eng/wgbroker.exe*
+// @include        https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*
+// @include        http://www.books.com.tw/exep/prod/booksfile.php?item=*
 // ==/UserScript==
 
 /*
@@ -48,8 +50,16 @@ LANG['FOUND2'] = ' 本，';
 LANG['FOUND3'] = ' 本在館內架上';
 LANG['MULTIPLE'] = '多於一個結果';
 LANG['PROCESSING'] = '正在處理/準備註銷';
+LANG['SEARCH_BOOKS_TW'] = '搜尋博客來';
 LANG['ERROR'] = '錯誤';
 LANG['UNKNOWN'] = '錯誤';
+
+LANG['GET_SUGGESTION'] = '填寫內容';
+LANG['LOADING'] = '載入中...';
+LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
+
+var SUGGEST_COUNTRY = new Array();
+SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
 
 var HKPL_TEXT_ON_SHELF = '館內架上';
 var HKPL_TEXT_CHECKED_OUT = '借出';
@@ -72,15 +82,26 @@ var MULTI_RESULT_NEXT_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-next-';
 var MULTI_RESULT_LAYER_CLASS = 'anobii-with-hkpl-multiple-layer';
 var MULTI_RESULT_SEARCH_INLINE_CLASS = 'anobii-with-hkpl-search-inline';
 
+var GET_SUGGESTION_BUTTON_ID = 'anobii-with-hkpl-get-suggestion-button';
+
+var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
+var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
+
 var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://libcat.hkpl.gov.hk';
 var g_sessionId = utils.getSession(SESSION_ID_KEY);
 var g_loading = false;
-var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
-var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
 
+var DISPLAY_BOOK = 0;
+var DISPLAY_SIMPLE = 1;
+var DISPLAY_LIST = 2;
+var DISPLAY_GALLERY = 3;
+var DISPLAY_SHELF = 4;
+
+var g_displayMode = DISPLAY_BOOK;
+  
 function DEBUG(msg) {
-  //if (console && console.log) console.log(msg);
+  if (console && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
@@ -128,35 +149,27 @@ function getHKPLSessionId(func) {
 }
 
 function processBookList() {
-  var DISPLAY_BOOK = 0;
-  var DISPLAY_SIMPLE = 1;
-  var DISPLAY_LIST = 2;
-  var DISPLAY_GALLERY = 3;
-  var DISPLAY_SHELF = 4;
-
-  var displayMode = DISPLAY_BOOK;
-
   var res = document.evaluate("//div[@id='product_info']/div[@class='info']/h1[@class='title']", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
   if (res.snapshotLength == 0) {
     res = document.evaluate("//table[@class='simple_list_view_container']//td[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
     if (res.snapshotLength > 0) {
-      displayMode = DISPLAY_SIMPLE;
+      g_displayMode = DISPLAY_SIMPLE;
     }
     else {
       res = document.evaluate("//ul[@class='item_text']//li[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
       if (res.snapshotLength > 0) {
-        displayMode = DISPLAY_LIST;
+        g_displayMode = DISPLAY_LIST;
       }
       else {
         res = document.evaluate("//ul[@class='gallery_view_container']//li[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
         if (res.snapshotLength > 0) {
-          displayMode = DISPLAY_GALLERY;
+          g_displayMode = DISPLAY_GALLERY;
         }
         // Not support shelf mode yet
         //else {
         //  res = document.evaluate("//ul[@class='shelf_view_container']//dt//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
         //  if (res.snapshotLength > 0) {
-        //    displayMode = DISPLAY_SHELF;
+        //    g_displayMode = DISPLAY_SHELF;
         //  }
         //}
       }
@@ -220,7 +233,7 @@ function processBookList() {
       search.setAttribute('id', SEARCH_LINK_ID_PREFIX + i);
       attachSearchLinkListener(search);
       
-      switch (displayMode) {
+      switch (g_displayMode) {
         case DISPLAY_BOOK:
           search.setAttribute('style', 'float:right; color:#6a0;');
           search.className = 'subtitle';
@@ -282,9 +295,10 @@ function onClickSearch(searchLink, isRetry) {
   var urlSuffix = '%23%23A:NONE%23NONE:NONE::%23%23';
   var url = '';
 
-  if (originSearchLink.getAttribute('name')) {
+  var bookName = originSearchLink.getAttribute('name');
+  if (bookName) {
     var big5url = '';
-    var utf8array = encodeUTF8(originSearchLink.getAttribute('name'));
+    var utf8array = encodeUTF8(bookName);
     for (var i=0;i<utf8array.length;i++) {
       if (utf8array[i].length == 6) {
         var big5 = org.ellab.big5.utf82big5(utf8array[i]);
@@ -318,7 +332,7 @@ function onClickSearch(searchLink, isRetry) {
       overrideMimeType: 'text/html; charset=big5',
       onload: function(t) {
         g_loading = false;
-        onLoadSearch(searchLink, t.responseText, url);
+        onLoadSearch(searchLink, t.responseText, url, bookName);
       }
     });
   }
@@ -529,7 +543,7 @@ function attachSearchLinkListener(a) {
   }, false);
 }
 
-function onLoadSearch(searchLink, t, url) {
+function onLoadSearch(searchLink, t, url, bookName) {
   DEBUG('onLoadSearch');
   
   if (t.indexOf('An Error Occured While Submitting Your Request to WebPAC') >= 0) {
@@ -544,6 +558,34 @@ function onLoadSearch(searchLink, t, url) {
   }
   else if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
     searchLink.innerHTML = LANG['NOTFOUND'];
+    
+    // not found and not in gallery display mode, show link to search books.com.tw
+    // it is ugly to show the link in shelf display mode
+    if (bookName && g_displayMode != DISPLAY_GALLERY) {
+      var a = document.createElement('a');
+      a.innerHTML = LANG['SEARCH_BOOKS_TW'];
+      a.href = 'javascript:void(0)';
+      a.setAttribute('bookname', bookName);
+      a.setAttribute('style', 'clear:both; float:right; color:#6a0;');
+      a.addEventListener('click', function(e) {
+        var form = document.createElement('form');
+        form.action = 'http://search.books.com.tw/exep/prod_search.php';
+        form.method = 'get';
+        form.target = '_blank';
+        var hidden = document.createElement('input');
+        hidden.name = 'cat';
+        hidden.value = 'BKA';
+        form.appendChild(hidden);
+        hidden = document.createElement('input');
+        hidden.name = 'key';
+        hidden.value = bookName;
+        form.appendChild(hidden);
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+      }, false);
+      searchLink.parentNode.appendChild(a);
+    }
   }
   else if (t.indexOf('<!-- File long.tem ') >= 0) {
     var clnRes = t.match(/<SCRIPT>codedLibNames\[libNameBlock\+\+\]=\"([^\"]+)\";<\/SCRIPT>/g);
@@ -673,7 +715,134 @@ function hkplAddAnobiiLink() {
   }
 }
 
-if (document.location.href.match(/anobii\.com/)) {
+function _hkplSuggestion_booksTW(t) {
+  if (t && t.responseText) {
+    t = t.responseText;
+  }
+  else {
+    return;
+  }
+
+  t = utils.extract(t, '<div class="prd001">');
+
+  DEBUG(t);
+
+  var res = document.evaluate("//form[@name='entryform1']//input[@value='Book']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+  if (res) {
+    res.checked = true;
+  };
+
+  res = utils.extract(t, '<span>', '</span>');
+  document.getElementById('title').value = res?res:'';
+  // <a href="http://search.books.com.tw/exep/prod_search.php?key=%AA%BB%CC&f=author">Author Name</a>
+  res = t.match(/<a href=\"[^\"]*f=author\">([^<]+)/);
+  document.getElementById('author').value = res?res[1]:'';
+  // <a href="http://www.books.com.tw/exep/pub_book.php?pubid=xxx">publisher</a>
+  res = t.match(/<a href=\"[^\"]*pub_book\.php\?pubid=[^\"]*\">([^<]+)/);
+  document.getElementById('publisher').value = res?res[1]:'';
+
+  t = utils.extract(t, 'pub_book.php?pubid=');
+  res = utils.extract(t, '<dfn>', '</dfn>');
+  document.getElementById('place').value = res?res:'';
+
+  res = t.match(/<span>ISBN[^<]*<\/span><dfn>([0-9|x|X]+)<\/dfn>/);
+  if (res) {
+    document.getElementById('isbn').value = res[1];
+    document.evaluate("//form[@name='entryform1']//input[@value='ISBN']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.checked = true;
+  }
+}
+
+function _hkplSuggestion_onClick() {
+  if (g_loading) {
+    return;
+  }
+  
+  var address0 = document.getElementById('address0');
+  if (!address0) {
+    return;
+  }
+  var url = address0.value;
+  if (/^https?:\/\/[^\/]*\.books\.com\.tw/.test(url)) {
+    g_loading = true;
+    document.getElementById(GET_SUGGESTION_BUTTON_ID).value = LANG['LOADING'];
+    org.ellab.utils.crossOriginXMLHttpRequest({
+      method: 'GET',
+      url: url,
+      overrideMimeType: 'text/html; charset=big5',
+      onload: function(t) {
+        g_loading = false;
+        _hkplSuggestion_booksTW(t);
+        document.getElementById(GET_SUGGESTION_BUTTON_ID).value = LANG['GET_SUGGESTION'];
+      }
+    });
+  }
+  else {
+    alert(LANG['INVALID_SUGGESTION_URL']);
+  }
+}
+
+function hkplSuggestion() {
+  var place = document.getElementById('place');
+  if (place) {
+    var suggestCountry = SUGGEST_COUNTRY['TC'];
+    for (var i=0; i<suggestCountry.length; i++) {
+      var a = document.createElement('a');
+      a.innerHTML = suggestCountry[i];
+      a.href = 'javascript:void(0)';
+      a.setAttribute('style', 'margin-left:10px;');
+      a.setAttribute('value', suggestCountry[i]);
+      a.addEventListener('click', function(e) {
+        place.value = e.target.getAttribute('value') + ' ' + place.value;
+      }, false);
+      place.parentNode.appendChild(a);
+    }
+  }
+
+  var address0 = document.getElementById('address0');
+  if (address0) {
+    var input = document.createElement('input');
+    input.setAttribute('id', GET_SUGGESTION_BUTTON_ID)
+    input.type = 'button';
+    input.value = LANG['GET_SUGGESTION'];
+    input.addEventListener('click', function(e) {
+      _hkplSuggestion_onClick(e);
+    }, false);
+    address0.parentNode.appendChild(input);
+
+    if (/autofill=1$/.test(document.location.href)) {
+      if (document.referrer) {
+        address0.value = document.referrer;
+        _hkplSuggestion_onClick();
+      }
+    }
+  }
+}
+
+function booksTWAddHKPLSuggestionLink() {
+  var res = document.evaluate("//ul[@class='prf003']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  if (res) {
+    var li = document.createElement('li');
+    var button = document.createElement('button');
+    button.innerHTML = '圖書舘購書建議';
+    button.addEventListener('click', function(e) {
+      var form = document.createElement('form');
+      form.action = 'https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html';
+      form.method = 'get';
+      form.target = '_blank';
+      var hidden = document.createElement('input');
+      hidden.name = 'autofill';
+      hidden.value = '1';
+      form.appendChild(hidden);
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    }, false);
+    li.appendChild(button);
+    res.appendChild(li);
+  }
+}
+
+if (/anobii\.com/.test(document.location.href)) {
   document.body.addEventListener('click', function(e) {
     var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
     for (var i=0;i<res.length;i++) {
@@ -683,8 +852,14 @@ if (document.location.href.match(/anobii\.com/)) {
 
   processBookList();
 }
-else if (document.location.href.match(/hkpl\.gov\.hk/)) {
+else if (/wgbroker/.test(document.location.href)) {
   hkplAddAnobiiLink();
+}
+else if (/collections_bs/.test(document.location.href)) {
+  hkplSuggestion();
+}
+else if (/booksfile\.php/.test(document.location.href)) {
+  booksTWAddHKPLSuggestionLink();
 }
 
 })();
