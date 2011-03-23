@@ -3,10 +3,10 @@
 // @version        3
 // @namespace      http://ellab.org/
 // @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
-// @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-2/ellab-utils.js
+// @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-3/ellab-utils.js
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-big5-1/ellab-big5.js
-// @resource       loading http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-2/loading.gif
-// @resource       shadowAlpha http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-2/shadowAlpha.png
+// @resource       loading http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-3/loading.gif
+// @resource       shadowAlpha http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-3/shadowAlpha.png
 // @include        http://www.anobii.com/books/*
 // @include        http://www.anobii.com/wishlist*
 // @include        http://www.anobii.com/*/books*
@@ -25,12 +25,20 @@
 Author: Angus http://angusdev.mysinablog.com/
               http://angusdev.blogspot.com/
               http://twitter.com/angusdev
-Date:   2010-03-03
+Date:   2011-03-24
 
 Version history:
+3    24-Mar-2011    Issue #8 Let user search partial book name if full name not found in hkpl
+                    Issue #9 Show prev/next page when multiple result has more than 1 page
+                    Issue #10 In HKPL search result, show list of libraries that has the book on shelf
+                    Issue #13 In HKPL book detail page, show link to anobii book page using ISBN
+                    Issue #17 Integrate HKPL book suggestion and books.com.tw for one click book suggestion
+                    Issue #19 Fix the bug that didn't show the search HKPL link if viewing others bookshelf in gallery mode
+                    Issue #20 Rename extension name to "Bookworm"
+                    Issue #21 Show link to search books.com.tw if not found in HKPL
 2    03-Mar-2010    Issue #3 Handle multiple results from hkpl
-                    Issue #4 Search books with punctuation in their name usually return no result from HKPL
-                    Issue #7 Search button does not show up in book detail page after anobii revamp
+                    Issue #4 Fix the bug that search books with punctuation in their name usually return no result from HKPL
+                    Issue #7 Fix the bug that search button does not show up in book detail page after anobii revamp
 1    10-Nov-2009    Initial release
 */
 
