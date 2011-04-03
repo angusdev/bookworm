@@ -695,28 +695,43 @@ function hkplAddAnobiiLink() {
     // has the Limit Holdings form means it is a book detail page
     var res = document.evaluate("//td[@valign='top' and not(@width)]", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
     for (var i=0 ; i<res.snapshotLength ; i++) {
-      var td = res.snapshotItem(i);
-      var isbn = td.textContent.match(/^[0-9]{9,13}X?/);
-      if (isbn) {
-        isbn = isbn[0];
-        if (isValidISBN(isbn)) {
-          var loading = document.createElement('img');
-          loading.src = LOADING_IMG;
-          td.appendChild(loading);
-          org.ellab.utils.crossOriginXMLHttpRequest({
-            method: 'GET',
-            url: 'http://www.anobii.com/search?isbn=' + isbn + '&searchAdvance=Search',
-            onload: function(t) {
-              t = extract(t.responseText, '<div id="shelf_wrap" class="list_view">');
-              var img = extract(t, 'src="', '" class="book_cover_');
-              var bookid = extract(t, '<tr id="', '"');
-              //no_cover_small.jpg
-              td.removeChild(loading);
-              td.innerHTML = '<a href="http://www.anobii.com/books/' + bookid + '" target="_blank"><img src="' + img.replace('type=1', 'type=3') + '"/><br/>' + td.innerHTML + '</a>';
-            }
-          });
+      addAnobiiLink(res.snapshotItem(i), true);
+    }
+  }
+}
+
+function booksTWAddAnobiiLink() {
+  var res = document.evaluate("//div[@id='pr_data']//span[text()='ISBN：']/../dfn[2]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  if (res) {
+    addAnobiiLink(res, false);
+  }
+}
+
+function addAnobiiLink(ele, showCover) {
+  var isbn = ele.textContent.match(/^[0-9]{9,13}X?/);
+  if (isbn) {
+    isbn = isbn[0];
+    if (isValidISBN(isbn)) {
+      var loading = document.createElement('img');
+      loading.src = LOADING_IMG;
+      loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
+      ele.appendChild(loading);
+      org.ellab.utils.crossOriginXMLHttpRequest({
+        method: 'GET',
+        url: 'http://www.anobii.com/search?isbn=' + isbn + '&searchAdvance=Search',
+        onload: function(t) {
+          t = extract(t.responseText, '<div id="shelf_wrap" class="list_view">');
+          var img = extract(t, 'src="', '" class="book_cover_');
+          var bookid = extract(t, '<tr id="', '"');
+          //no_cover_small.jpg
+          ele.removeChild(loading);
+          ele.innerHTML = '<a href="http://www.anobii.com/books/' + bookid + '" target="_blank">' +
+                          (showCover?'<img src="' + img.replace('type=1', 'type=3') + '"/><br/>':'') + 
+                          ele.innerHTML + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
+                          (showCover?'margin-top:5px;':'') +
+                          '"/>';
         }
-      }
+      });
     }
   }
 }
@@ -866,6 +881,7 @@ else if (/collections_bs/.test(document.location.href)) {
 }
 else if (/booksfile\.php/.test(document.location.href)) {
   booksTWAddHKPLSuggestionLink();
+  booksTWAddAnobiiLink();
 }
 
 })();
