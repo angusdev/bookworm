@@ -285,6 +285,11 @@ function onClickSearch(searchLink, isRetry) {
       if (multipleLayer) {
         multipleLayer.parentNode.removeChild(multipleLayer);
       }
+      // remove search books.com.tw link
+      var list = searchLink.parentNode.getElementsByClassName('anobii-with-hkpl-search-books-tw');
+      for (var i=list.length-1; i>=0; i--) {
+        searchLink.parentNode.removeChild(list[i]);
+      }
     }
   }
   
@@ -572,7 +577,7 @@ function onLoadSearch(searchLink, t, url, bookName) {
       a.innerHTML = LANG['SEARCH_BOOKS_TW'];
       a.href = 'javascript:void(0)';
       a.setAttribute('bookname', bookName);
-      a.className = searchLink.className;
+      a.className = searchLink.className + " anobii-with-hkpl-search-books-tw";
       a.setAttribute('style', 'clear:both; float:right; color:#6a0;');
       a.addEventListener('click', function(e) {
         var form = document.createElement('form');
