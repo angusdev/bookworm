@@ -572,6 +572,7 @@ function onLoadSearch(searchLink, t, url, bookName) {
       a.innerHTML = LANG['SEARCH_BOOKS_TW'];
       a.href = 'javascript:void(0)';
       a.setAttribute('bookname', bookName);
+      a.className = 'subtitle';
       a.setAttribute('style', 'clear:both; float:right; color:#6a0;');
       a.addEventListener('click', function(e) {
         var form = document.createElement('form');
