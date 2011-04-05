@@ -66,6 +66,8 @@ LANG['GET_SUGGESTION'] = '填寫內容';
 LANG['LOADING'] = '載入中...';
 LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
 
+LANG['ANOBII_RATING'] = 'aNobii 評級'
+
 var SUGGEST_COUNTRY = new Array();
 SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
 
@@ -100,7 +102,13 @@ var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
 var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://libcat.hkpl.gov.hk';
 var g_sessionId = utils.getSession(SESSION_ID_KEY);
+var g_pageType = '';  // indicates which page is in, used by different function to show different presentations
 var g_loading = false;
+
+var PAGE_TYPE_ANOBII = 1;
+var PAGE_TYPE_HKPL_BOOK = 2;
+var PAGE_TYPE_HKPL_SUGGESTION = 3;
+var PAGE_TYPE_BOOKS_TW_BOOK = 4;
 
 var DISPLAY_BOOK = 0;
 var DISPLAY_SIMPLE = 1;
@@ -145,8 +153,23 @@ function encodeUTF8(s) {
   return utftext;
 }
 
+// Traverse the node upward to find the nearest parent of the tag
+function parent(node, tag) {
+  if (!node) return node;
+  
+  if (!tag) return node.parentNode;
+  
+  node = node.parentNode;
+  while (node) {
+    if (node.tagName && node.tagName.toUpperCase() == tag.toUpperCase()) {
+      return node;
+    }
+    node = node.parentNode;
+  }
+}
+
 function getHKPLSessionId(func) {
-  org.ellab.utils.crossOriginXMLHttpRequest({
+  utils.crossOriginXMLHttpRequest({
     method: 'GET',
     url: 'http://libcat.hkpl.gov.hk/webpac_cjk/wgbroker.exe?new+-access+top.main-page',
     onload: function(t) {
@@ -339,7 +362,7 @@ function onClickSearch(searchLink, isRetry) {
 
   DEBUG(url);
   if (url) {
-    org.ellab.utils.crossOriginXMLHttpRequest({
+    utils.crossOriginXMLHttpRequest({
       method: 'GET',
       url: url,
       overrideMimeType: 'text/html; charset=big5',
@@ -724,7 +747,7 @@ function addAnobiiLink(ele, showCover) {
       loading.src = LOADING_IMG;
       loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
       ele.appendChild(loading);
-      org.ellab.utils.crossOriginXMLHttpRequest({
+      utils.crossOriginXMLHttpRequest({
         method: 'GET',
         url: 'http://www.anobii.com/search?isbn=' + isbn + '&searchAdvance=Search',
         onload: function(t) {
@@ -735,13 +758,59 @@ function addAnobiiLink(ele, showCover) {
           ele.removeChild(loading);
           ele.innerHTML = '<a href="http://www.anobii.com/books/' + bookid + '" target="_blank">' +
                           (showCover?'<img src="' + img.replace('type=1', 'type=3') + '"/><br/>':'') + 
-                          ele.innerHTML + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
+                          ele.innerHTML.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
                           (showCover?'margin-top:5px;':'') +
                           '"/>';
+          addAnobiiRating(ele, 'http://www.anobii.com/books/' + bookid);
         }
       });
     }
   }
+}
+
+function addAnobiiRating(ele, url) {
+  var loading = document.createElement('img');
+  loading.src = LOADING_IMG;
+  loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
+  ele.appendChild(loading);
+  utils.crossOriginXMLHttpRequest({
+    method: 'GET',
+    url: url,
+    onload: function(t) {
+      ele.removeChild(loading);
+      var rating = extract(t.responseText, '<div class="stars">', '</div>');
+      if (rating) {
+        var onShelf = extract(t.responseText, '<a id="others_have_this"', '</a>');
+        if (onShelf) {
+          onShelf = onShelf.match(/>(\d+)/);
+          if (onShelf) {
+            onShelf = onShelf[1];
+          }
+        }
+        if (onShelf) {
+          rating = rating.replace(/\((\d+)\)/, '($1/' + onShelf + ')');
+        }
+
+        if (g_pageType == PAGE_TYPE_HKPL_BOOK) {
+          var parentTr = parent(ele, 'tr');
+          if (parentTr) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + LANG['ANOBII_RATING'] + '</strong>' +
+                           '<td valign="top">' + rating + '</td></tr>';
+            parentTr.parentNode.insertBefore(tr, parentTr.nextSibling);
+          }
+        }        
+        else if (g_pageType == PAGE_TYPE_BOOKS_TW_BOOK)  {
+          var parentLi = parent(ele, 'li');
+          if (parentLi) {
+            var li = document.createElement('li');
+            li.innerHTML = LANG['ANOBII_RATING'] + ':<span>' + rating +  '</span>';
+            parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
+          }
+        }
+      }
+    }
+  });
 }
 
 function _hkplSuggestion_booksTW(t) {
@@ -794,7 +863,7 @@ function _hkplSuggestion_onClick() {
   if (/^https?:\/\/[^\/]*\.books\.com\.tw/.test(url)) {
     g_loading = true;
     document.getElementById(GET_SUGGESTION_BUTTON_ID).value = LANG['LOADING'];
-    org.ellab.utils.crossOriginXMLHttpRequest({
+    utils.crossOriginXMLHttpRequest({
       method: 'GET',
       url: url,
       overrideMimeType: 'text/html; charset=big5',
@@ -872,6 +941,8 @@ function booksTWAddHKPLSuggestionLink() {
 }
 
 if (/anobii\.com/.test(document.location.href)) {
+  g_pageType = PAGE_TYPE_ANOBII;
+  
   document.body.addEventListener('click', function(e) {
     var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
     for (var i=0;i<res.length;i++) {
@@ -882,12 +953,18 @@ if (/anobii\.com/.test(document.location.href)) {
   processBookList();
 }
 else if (/wgbroker/.test(document.location.href)) {
+  g_pageType = PAGE_TYPE_HKPL_BOOK;
+
   hkplAddAnobiiLink();
 }
 else if (/collections_bs/.test(document.location.href)) {
+  g_pageType = PAGE_TYPE_HKPL_SUGGESTION;
+  
   hkplSuggestion();
 }
 else if (/booksfile\.php/.test(document.location.href)) {
+  g_pageType = PAGE_TYPE_BOOKS_TW_BOOK;
+
   booksTWAddHKPLSuggestionLink();
   booksTWAddAnobiiLink();
 }
