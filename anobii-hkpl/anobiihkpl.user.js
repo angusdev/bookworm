@@ -81,16 +81,18 @@ var ONSHELF_LIB_REMOVE_REGEXP= [
   [/%[a-zA-Z0-9]{2}/g, function(m) { return unescape(m); } ]
 ];
 
-var SEARCH_LINK_ID_PREFIX = 'anobii-with-hkpl-search-id-';
-var SUPER_SEARCH_LINK_ID_PREFIX = 'anobii-with-hkpl-supersearch-id-';
-var MULTI_RESULT_LAYER_ID_PREFIX = 'anobii-with-hkpl-multiple-id-';
-var MULTI_RESULT_PREV_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-prev-';
-var MULTI_RESULT_NEXT_LINK_ID_PREFIX = 'anobii-with-hkpl-multiple-next-';
+var SEARCH_LINK_ID_PREFIX = 'bookworm-search-id-';
+var SUPER_SEARCH_LINK_ID_PREFIX = 'bookworm-supersearch-id-';
+var MULTI_RESULT_LAYER_ID_PREFIX = 'bookworm-multiple-id-';
+var MULTI_RESULT_PREV_LINK_ID_PREFIX = 'bookworm-multiple-prev-';
+var MULTI_RESULT_NEXT_LINK_ID_PREFIX = 'bookworm-multiple-next-';
 
-var MULTI_RESULT_LAYER_CLASS = 'anobii-with-hkpl-multiple-layer';
-var MULTI_RESULT_SEARCH_INLINE_CLASS = 'anobii-with-hkpl-search-inline';
+var SEARCH_BOOKS_TW_CLASS = 'bookworm-search-books-tw';
 
-var GET_SUGGESTION_BUTTON_ID = 'anobii-with-hkpl-get-suggestion-button';
+var MULTI_RESULT_LAYER_CLASS = 'bookworm-multiple-layer';
+var MULTI_RESULT_SEARCH_INLINE_CLASS = 'bookworm-search-inline';
+
+var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
@@ -286,7 +288,7 @@ function onClickSearch(searchLink, isRetry) {
         multipleLayer.parentNode.removeChild(multipleLayer);
       }
       // remove search books.com.tw link
-      var list = searchLink.parentNode.getElementsByClassName('anobii-with-hkpl-search-books-tw');
+      var list = searchLink.parentNode.getElementsByClassName(SEARCH_BOOKS_TW_CLASS);
       for (var i=list.length-1; i>=0; i--) {
         searchLink.parentNode.removeChild(list[i]);
       }
@@ -577,7 +579,7 @@ function onLoadSearch(searchLink, t, url, bookName) {
       a.innerHTML = LANG['SEARCH_BOOKS_TW'];
       a.href = 'javascript:void(0)';
       a.setAttribute('bookname', bookName);
-      a.className = searchLink.className + " anobii-with-hkpl-search-books-tw";
+      a.className = searchLink.className + ' ' + SEARCH_BOOKS_TW_CLASS;
       a.setAttribute('style', 'clear:both; float:right; color:#6a0;');
       a.addEventListener('click', function(e) {
         var form = document.createElement('form');
