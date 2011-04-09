@@ -28,9 +28,9 @@ Author: Angus http://angusdev.mysinablog.com/
 Date:   2011-04-09
 
 Version history:
-4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link   
-                    Issue #23 Fix the bug that show multiple search books.com.tw links   
-                    Issue #24 Link from books.com.tw to anobii  
+4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link
+                    Issue #23 Fix the bug that show multiple search books.com.tw links
+                    Issue #24 Link from books.com.tw to anobii
                     Issue #25 Display anobii rating in HKPL and Books.com.tw book detail page   
                     Issue #28 Fix the bug of duplicated search HKPL link in Chrome 12
 3    24-Mar-2011    Issue #8 Let user search partial book name if full name not found in hkpl
