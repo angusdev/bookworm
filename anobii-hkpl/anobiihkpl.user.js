@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Bookworm
-// @version        3
+// @version        4
 // @namespace      http://ellab.org/
 // @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-3/ellab-utils.js
@@ -25,9 +25,14 @@
 Author: Angus http://angusdev.mysinablog.com/
               http://angusdev.blogspot.com/
               http://twitter.com/angusdev
-Date:   2011-03-24
+Date:   2011-04-09
 
 Version history:
+4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link   
+                    Issue #23 Fix the bug that show multiple search books.com.tw links   
+                    Issue #24 Link from books.com.tw to anobii  
+                    Issue #25 Display anobii rating in HKPL and Books.com.tw book detail page   
+                    Issue #28 Fix the bug of duplicated search HKPL link in Chrome 12
 3    24-Mar-2011    Issue #8 Let user search partial book name if full name not found in hkpl
                     Issue #9 Show prev/next page when multiple result has more than 1 page
                     Issue #10 In HKPL search result, show list of libraries that has the book on shelf

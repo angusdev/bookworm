@@ -1,6 +1,6 @@
 {
   "name": "Bookworm",
-  "version": "3",
+  "version": "4",
   "description": "Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library in aNobii pages.",
   "background_page": "background.html",
   "content_scripts": [
