@@ -940,6 +940,16 @@ function booksTWAddHKPLSuggestionLink() {
   }
 }
 
+// main
+
+// temp solution for Issue #28 Duplicated search HKPL link in Chrome 12
+if (document.body.getAttribute('bookworm-loaded')) {
+  return;
+}
+else {
+  document.body.setAttribute('bookworm-loaded', 'true');
+}
+
 if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
   
