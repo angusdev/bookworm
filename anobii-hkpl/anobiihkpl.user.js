@@ -220,50 +220,8 @@ function processBookList() {
     if (matched) {
       var bookName = matched[1].replace(/^s+/, '').replace(/\s+$/, '');
 
-      // build the super search link in original book name
-      // in super search link, click on a word of the book name will search the partial book name up to that word
-      // first split the book name to different search English word, number or other character
-      var superSearchWords = [];
-      var tmpBookName = utils.decodeHTML(bookName);
-      while (tmpBookName) {
-        var resSearchWord = tmpBookName.match(/^[a-zA-Z0-9]+/);
-        if (resSearchWord) {
-          superSearchWords.push(resSearchWord[0]);
-        }
-        else {
-          resSearchWord = tmpBookName.match(/^\s+/);
-          if (resSearchWord) {
-            superSearchWords.push(resSearchWord[0]);
-          }
-          else {
-            superSearchWords.push(tmpBookName[0]);
-          }
-        }
-        tmpBookName = tmpBookName.substring(superSearchWords[superSearchWords.length-1].length);
-      }
-      
-      var superSearchHTML = '';
-      for (var j=0; j<superSearchWords.length; j++) {
-        if (/^\s+$/.test(superSearchWords[j])) {
-          // space, no link
-          superSearchHTML += superSearchWords[j];
-        }
-        else {
-          superSearchHTML += '<a id="'+ SUPER_SEARCH_LINK_ID_PREFIX + i + '-' + j +'" href="javascript:void(0)">' + utils.encodeHTML(superSearchWords[j]) + '</a>';
-        }
-      }
-      ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
-      for (var j=0; j<superSearchWords.length; j++) {
-        var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + i + '-' + j);
-        if (superSearch) {
-          var searchPhrase = bookName.substring(0, j+1);
-          var searchPhrase = superSearchWords.slice(0, j+1).join('');
-          superSearch.setAttribute('name', searchPhrase);
-          superSearch.setAttribute('title', LANG['SEARCH'] +' ' + searchPhrase);
-          attachSearchLinkListener(superSearch);
-        }
-      }
-      
+      buildSuperSearch(ele, bookName, i);
+
       var search = document.createElement('a');
       search.innerHTML = LANG['SEARCH_HKPL'];
       search.href = 'javascript:void(0)';
@@ -293,6 +251,52 @@ function processBookList() {
       search = null;
     }
   }
+}
+
+function buildSuperSearch(ele, bookName, searchLinkId) {
+  // build the super search link in original book name
+  // in super search link, click on a word of the book name will search the partial book name up to that word
+  // first split the book name to different search English word, number or other character
+  var superSearchWords = [];
+  var tmpBookName = utils.decodeHTML(bookName);
+  while (tmpBookName) {
+    var resSearchWord = tmpBookName.match(/^[a-zA-Z0-9]+/);
+    if (resSearchWord) {
+      superSearchWords.push(resSearchWord[0]);
+    }
+    else {
+      resSearchWord = tmpBookName.match(/^\s+/);
+      if (resSearchWord) {
+        superSearchWords.push(resSearchWord[0]);
+      }
+      else {
+        superSearchWords.push(tmpBookName[0]);
+      }
+    }
+    tmpBookName = tmpBookName.substring(superSearchWords[superSearchWords.length-1].length);
+  }
+  
+  var superSearchHTML = '';
+  for (var j=0; j<superSearchWords.length; j++) {
+    if (/^\s+$/.test(superSearchWords[j])) {
+      // space, no link
+      superSearchHTML += superSearchWords[j];
+    }
+    else {
+      superSearchHTML += '<a id="'+ SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + j +'" href="javascript:void(0)">' + utils.encodeHTML(superSearchWords[j]) + '</a>';
+    }
+  }
+  ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
+  for (var j=0; j<superSearchWords.length; j++) {
+    var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + j);
+    if (superSearch) {
+      var searchPhrase = bookName.substring(0, j+1);
+      var searchPhrase = superSearchWords.slice(0, j+1).join('');
+      superSearch.setAttribute('name', searchPhrase);
+      superSearch.setAttribute('title', LANG['SEARCH'] +' ' + searchPhrase);
+      attachSearchLinkListener(superSearch);
+    }
+  }  
 }
 
 function onClickSearch(searchLink, isRetry) {
