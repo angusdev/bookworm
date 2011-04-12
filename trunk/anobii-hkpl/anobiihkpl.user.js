@@ -187,6 +187,7 @@ function getHKPLSessionId(func) {
 }
 
 function processBookList() {
+  g_displayMode = DISPLAY_BOOK;
   var res = document.evaluate("//div[@id='product_info']/div[@class='info']/h1[@class='title']", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
   if (res.snapshotLength == 0) {
     res = document.evaluate("//table[@class='simple_list_view_container']//td[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -220,7 +221,24 @@ function processBookList() {
     if (matched) {
       var bookName = matched[1].replace(/^s+/, '').replace(/\s+$/, '');
 
-      buildSuperSearch(ele, bookName, i);
+      var superSearchStartId = buildSuperSearch(ele, bookName, i, 0);
+      
+      switch (g_displayMode) {
+        case DISPLAY_BOOK:
+          var subtitle = document.evaluate("../h2[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          break;
+        case DISPLAY_LIST:
+        case DISPLAY_GALLERY:
+          var subtitle = document.evaluate("../../li[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          break;
+        case DISPLAY_SIMPLE:
+          var subtitle = document.evaluate("./span[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          break;
+      }
+      if (subtitle) {
+        buildSuperSearch(subtitle, subtitle.textContent, i, superSearchStartId);
+        subtitle.className += ' bookworm-anobii';
+      }
 
       var search = document.createElement('a');
       search.innerHTML = LANG['SEARCH_HKPL'];
@@ -253,7 +271,7 @@ function processBookList() {
   }
 }
 
-function buildSuperSearch(ele, bookName, searchLinkId) {
+function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
   // build the super search link in original book name
   // in super search link, click on a word of the book name will search the partial book name up to that word
   // first split the book name to different search English word, number or other character
@@ -283,12 +301,12 @@ function buildSuperSearch(ele, bookName, searchLinkId) {
       superSearchHTML += superSearchWords[j];
     }
     else {
-      superSearchHTML += '<a id="'+ SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + j +'" href="javascript:void(0)">' + utils.encodeHTML(superSearchWords[j]) + '</a>';
+      superSearchHTML += '<a id="'+ SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + (superSearchStartId + j) +'" href="javascript:void(0)">' + utils.encodeHTML(superSearchWords[j]) + '</a>';
     }
   }
   ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
   for (var j=0; j<superSearchWords.length; j++) {
-    var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + j);
+    var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + (superSearchStartId + j));
     if (superSearch) {
       var searchPhrase = bookName.substring(0, j+1);
       var searchPhrase = superSearchWords.slice(0, j+1).join('');
@@ -296,7 +314,9 @@ function buildSuperSearch(ele, bookName, searchLinkId) {
       superSearch.setAttribute('title', LANG['SEARCH'] +' ' + searchPhrase);
       attachSearchLinkListener(superSearch);
     }
-  }  
+  }
+  
+  return superSearchWords.length;
 }
 
 function onClickSearch(searchLink, isRetry) {
@@ -961,6 +981,12 @@ else {
 
 if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
+
+  if (typeof(GM_addStyle) != 'undefined') {
+    GM_addStyle('.bookworm-anobii.subtitle a:link { color:black; } \
+                 .bookworm-anobii.subtitle a:hover { color:#039; } \
+                 .simple_list_view .shelf .title .bookworm-anobii.subtitle a { font-weight:normal; }');
+  }
   
   document.body.addEventListener('click', function(e) {
     var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);

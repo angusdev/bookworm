@@ -13,6 +13,7 @@
                   "http://libcat.hkpl.gov.hk/webpac_eng/wgbroker.exe*",
                   "https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*",
                   "http://www.books.com.tw/exep/prod/booksfile.php?item=*"],
+      "css": ["anobiihkpl.css"],
       "js": ["xhrproxy.js", "ellab-utils.js", "ellab-big5.js", "anobiihkpl.user.js"]
     }
   ],
