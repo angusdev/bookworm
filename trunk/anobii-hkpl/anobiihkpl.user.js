@@ -778,63 +778,76 @@ function addAnobiiLink(ele, showCover) {
       ele.appendChild(loading);
       utils.crossOriginXMLHttpRequest({
         method: 'GET',
-        url: 'http://www.anobii.com/search?isbn=' + isbn + '&searchAdvance=Search',
+        url: 'http://iapp2.anobii.com/InternalAPI/html/iapp2/search/search-book?keyword=' + isbn + '&page=1&itemPerPage=1',
         onload: function(t) {
-          t = extract(t.responseText, '<div id="shelf_wrap" class="list_view">');
-          var img = extract(t, 'src="', '" class="book_cover_');
-          var bookid = extract(t, '<tr id="', '"');
-          //no_cover_small.jpg
           ele.removeChild(loading);
-          ele.innerHTML = '<a href="http://www.anobii.com/books/' + bookid + '" target="_blank">' +
-                          (showCover?'<img src="' + img.replace('type=1', 'type=3') + '"/><br/>':'') + 
-                          ele.innerHTML.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
-                          (showCover?'margin-top:5px;':'') +
-                          '"/>';
-          addAnobiiRating(ele, 'http://www.anobii.com/books/' + bookid);
+          if (t.status == 200) {
+            var obj = utils.jsonParse(t.responseText);
+            if (obj && obj[0].totalRecord > 0) {
+
+              obj = obj[0];
+              var bookId = obj.resultFinal[0].encryptItemId;
+              ele.innerHTML = '<a href="http://www.anobii.com/books/' + obj.resultFinal[0].encryptItemId + '" target="_blank">' +
+                              (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
+                              ele.innerHTML.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
+                              (showCover?'margin-top:5px;':'') +
+                              '"/>';
+              addAnobiiRating(ele, bookId);
+            }
+          }
         }
       });
     }
   }
 }
-
-function addAnobiiRating(ele, url) {
+function addAnobiiRating(ele, bookId) {
   var loading = document.createElement('img');
   loading.src = LOADING_IMG;
   loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
   ele.appendChild(loading);
   utils.crossOriginXMLHttpRequest({
     method: 'GET',
-    url: url,
+    url: 'http://iapp2.anobii.com/InternalAPI/html/iapp2/item/book?itemId=' + bookId + '&description=0',
     onload: function(t) {
       ele.removeChild(loading);
-      var rating = extract(t.responseText, '<div class="stars">', '</div>');
-      if (rating) {
-        var onShelf = extract(t.responseText, '<a id="others_have_this"', '</a>');
-        if (onShelf) {
-          onShelf = onShelf.match(/>(\d+)/);
-          if (onShelf) {
-            onShelf = onShelf[1];
-          }
-        }
-        if (onShelf) {
-          rating = rating.replace(/\((\d+)\)/, '($1/' + onShelf + ')');
-        }
+      if (t.status == 200) {
+        var obj = utils.jsonParse(t.responseText);
+        if (obj && obj.length > 0) {
 
-        if (g_pageType == PAGE_TYPE_HKPL_BOOK) {
-          var parentTr = parent(ele, 'tr');
-          if (parentTr) {
-            var tr = document.createElement('tr');
-            tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + LANG['ANOBII_RATING'] + '</strong>' +
-                           '<td valign="top">' + rating + '</td></tr>';
-            parentTr.parentNode.insertBefore(tr, parentTr.nextSibling);
-          }
-        }        
-        else if (g_pageType == PAGE_TYPE_BOOKS_TW_BOOK)  {
-          var parentLi = parent(ele, 'li');
-          if (parentLi) {
-            var li = document.createElement('li');
-            li.innerHTML = LANG['ANOBII_RATING'] + ':<span>' + rating +  '</span>';
-            parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
+          obj = obj[0];
+          if (obj.totalOwner > 0) {
+            var rating = '';
+            if (obj.averageRate > 0) {
+              var rateInt = parseInt(obj.averageRate, 10);
+              var ratePtFive = (obj.averageRate == rateInt)?0:1;
+              for (var i=0; i<rateInt; i++) {
+                rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif" width="10" height="10"/>';
+              }
+              if (ratePtFive) {
+                rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_05.gif" width="10" height="10"/>';
+              }
+              for (var i=rateInt+ratePtFive; i<5; i++) {
+                rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif" width="10" height="10"/>';
+              }
+            }
+            rating += ' (' + obj.totalRatePerson + '/' + obj.totalOwner + ')';
+            if (g_pageType == PAGE_TYPE_HKPL_BOOK) {
+              var parentTr = parent(ele, 'tr');
+              if (parentTr) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + LANG['ANOBII_RATING'] + '</strong>' +
+                               '<td valign="top">' + rating + '</td></tr>';
+                parentTr.parentNode.insertBefore(tr, parentTr.nextSibling);
+              }
+            }
+            else if (g_pageType == PAGE_TYPE_BOOKS_TW_BOOK)  {
+              var parentLi = parent(ele, 'li');
+              if (parentLi) {
+                var li = document.createElement('li');
+                li.innerHTML = LANG['ANOBII_RATING'] + ':<span>' + rating +  '</span>';
+                parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
+              }
+            }
           }
         }
       }
