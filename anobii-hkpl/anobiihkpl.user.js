@@ -31,7 +31,7 @@ Version history:
 4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link
                     Issue #23 Fix the bug that show multiple search books.com.tw links
                     Issue #24 Link from books.com.tw to anobii
-                    Issue #25 Display anobii rating in HKPL and Books.com.tw book detail page   
+                    Issue #25 Display anobii rating in HKPL and Books.com.tw book detail page
                     Issue #28 Fix the bug of duplicated search HKPL link in Chrome 12
 3    24-Mar-2011    Issue #8 Let user search partial book name if full name not found in hkpl
                     Issue #9 Show prev/next page when multiple result has more than 1 page
@@ -82,8 +82,8 @@ var HKPL_TEXT_IN_TRANSIT = '轉移中';
 var HKPL_TEXT_CLOSED_STACK = '閉架';
 
 var ONSHELF_LIB_REMOVE_REGEXP= [
-  [/公共圖書館/g, ''], 
-  [/香港中央圖書館/g, '中央'], 
+  [/公共圖書館/g, ''],
+  [/香港中央圖書館/g, '中央'],
   [/&LTscript>processData%28'.*'%29;&LT\/script>/g, function(m) { return eval('"\\u'+m.match(/%28'(.*)'%29/)[1]+'";'); } ],
   [/%[a-zA-Z0-9]{2}/g, function(m) { return unescape(m); } ]
 ];
@@ -122,7 +122,7 @@ var DISPLAY_GALLERY = 3;
 var DISPLAY_SHELF = 4;
 
 var g_displayMode = DISPLAY_BOOK;
-  
+
 function DEBUG(msg) {
   //if (console && console.log) console.log(msg);
 }
@@ -161,9 +161,9 @@ function encodeUTF8(s) {
 // Traverse the node upward to find the nearest parent of the tag
 function parent(node, tag) {
   if (!node) return node;
-  
+
   if (!tag) return node.parentNode;
-  
+
   node = node.parentNode;
   while (node) {
     if (node.tagName && node.tagName.toUpperCase() == tag.toUpperCase()) {
@@ -222,7 +222,7 @@ function processBookList() {
       var bookName = matched[1].replace(/^s+/, '').replace(/\s+$/, '');
 
       var superSearchStartId = buildSuperSearch(ele, bookName, i, 0);
-      
+
       switch (g_displayMode) {
         case DISPLAY_BOOK:
           var subtitle = document.evaluate("../h2[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
@@ -246,7 +246,7 @@ function processBookList() {
       search.setAttribute('name', bookName);
       search.setAttribute('id', SEARCH_LINK_ID_PREFIX + i);
       attachSearchLinkListener(search);
-      
+
       switch (g_displayMode) {
         case DISPLAY_BOOK:
           search.setAttribute('style', 'float:right; color:#6a0;');
@@ -293,7 +293,7 @@ function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
     }
     tmpBookName = tmpBookName.substring(superSearchWords[superSearchWords.length-1].length);
   }
-  
+
   var superSearchHTML = '';
   for (var j=0; j<superSearchWords.length; j++) {
     if (/^\s+$/.test(superSearchWords[j])) {
@@ -315,7 +315,7 @@ function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
       attachSearchLinkListener(superSearch);
     }
   }
-  
+
   return superSearchWords.length;
 }
 
@@ -326,14 +326,14 @@ function onClickSearch(searchLink, isRetry) {
   }
 
   var originSearchLink = searchLink;
-  
+
   if (searchLink.getAttribute('id')) {
     var searchId = searchLink.getAttribute('id').match('^' + SUPER_SEARCH_LINK_ID_PREFIX + '(\\d+)');
     if (searchId) {
       searchId = searchId[1];
       // check if it is a supersearch link, fake the program to the normal search link so the result will show on the normal search link
       searchLink = document.getElementById(SEARCH_LINK_ID_PREFIX + searchId);
-      
+
       // remove the multi result of previous search
       var multipleLayer = document.getElementById(MULTI_RESULT_LAYER_ID_PREFIX + searchId);
       if (multipleLayer) {
@@ -346,7 +346,7 @@ function onClickSearch(searchLink, isRetry) {
       }
     }
   }
-  
+
   searchLink.setAttribute('already-visited', 'true');
   g_loading = true;
 
@@ -610,7 +610,7 @@ function attachSearchLinkListener(a) {
 
 function onLoadSearch(searchLink, t, url, bookName) {
   DEBUG('onLoadSearch');
-  
+
   if (t.indexOf('An Error Occured While Submitting Your Request to WebPAC') >= 0) {
     // session id not valid, need to retry
     DEBUG('Get Session ID');
@@ -623,7 +623,7 @@ function onLoadSearch(searchLink, t, url, bookName) {
   }
   else if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
     searchLink.innerHTML = LANG['NOTFOUND'];
-    
+
     // not found and not in gallery display mode, show link to search books.com.tw
     // it is ugly to show the link in shelf display mode
     if (bookName && g_displayMode != DISPLAY_GALLERY) {
@@ -688,7 +688,7 @@ function onLoadSearch(searchLink, t, url, bookName) {
         }
       }
       searchLink.innerHTML = LANG['FOUND1'] + total + LANG['FOUND2'] + onshelfTotal + LANG['FOUND3'];
-      
+
       if (onshelfLib.length) {
         var onshelfLibString = onshelfLib[0];
         var lastItemCount = 1;
@@ -896,7 +896,7 @@ function _hkplSuggestion_onClick() {
   if (g_loading) {
     return;
   }
-  
+
   var address0 = document.getElementById('address0');
   if (!address0) {
     return;
@@ -1000,7 +1000,7 @@ if (/anobii\.com/.test(document.location.href)) {
                  .bookworm-anobii.subtitle a:hover { color:#039; } \
                  .simple_list_view .shelf .title .bookworm-anobii.subtitle a { font-weight:normal; }');
   }
-  
+
   document.body.addEventListener('click', function(e) {
     var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
     for (var i=0;i<res.length;i++) {
@@ -1017,7 +1017,7 @@ else if (/wgbroker/.test(document.location.href)) {
 }
 else if (/collections_bs/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_SUGGESTION;
-  
+
   hkplSuggestion();
 }
 else if (/booksfile\.php/.test(document.location.href)) {
