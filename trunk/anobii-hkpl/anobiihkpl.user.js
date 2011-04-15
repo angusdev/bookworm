@@ -51,6 +51,8 @@ Version history:
 
 var utils = org.ellab.utils;
 var extract = org.ellab.utils.extract;
+var xpath = org.ellab.utils.xpath;
+var xpathl = org.ellab.utils.xpathl;
 
 var LANG = new Array();
 LANG['SEARCH'] = '搜尋';
@@ -188,25 +190,25 @@ function getHKPLSessionId(func) {
 
 function processBookList() {
   g_displayMode = DISPLAY_BOOK;
-  var res = document.evaluate("//div[@id='product_info']/div[@class='info']/h1[@class='title']", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+  var res = xpathl("//div[@id='product_info']/div[@class='info']/h1[@class='title']");
   if (res.snapshotLength == 0) {
-    res = document.evaluate("//table[@class='simple_list_view_container']//td[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+    res = xpathl("//table[@class='simple_list_view_container']//td[@class='title']//a");
     if (res.snapshotLength > 0) {
       g_displayMode = DISPLAY_SIMPLE;
     }
     else {
-      res = document.evaluate("//ul[@class='item_text']//li[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+      res = xpathl("//ul[@class='item_text']//li[@class='title']//a");
       if (res.snapshotLength > 0) {
         g_displayMode = DISPLAY_LIST;
       }
       else {
-        res = document.evaluate("//ul[@class='gallery_view_container']//li[@class='title']//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+        res = xpathl("//ul[@class='gallery_view_container']//li[@class='title']//a");
         if (res.snapshotLength > 0) {
           g_displayMode = DISPLAY_GALLERY;
         }
         // Not support shelf mode yet
         //else {
-        //  res = document.evaluate("//ul[@class='shelf_view_container']//dt//a", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+        //  res = xpathl("//ul[@class='shelf_view_container']//dt//a");
         //  if (res.snapshotLength > 0) {
         //    g_displayMode = DISPLAY_SHELF;
         //  }
@@ -225,14 +227,14 @@ function processBookList() {
 
       switch (g_displayMode) {
         case DISPLAY_BOOK:
-          var subtitle = document.evaluate("../h2[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          var subtitle = xpath("../h2[@class='subtitle']", ele);
           break;
         case DISPLAY_LIST:
         case DISPLAY_GALLERY:
-          var subtitle = document.evaluate("../../li[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          var subtitle = xpath("../../li[@class='subtitle']", ele);
           break;
         case DISPLAY_SIMPLE:
-          var subtitle = document.evaluate("./span[@class='subtitle']", ele, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          var subtitle = xpath("./span[@class='subtitle']", ele);
           break;
       }
       if (subtitle) {
@@ -751,9 +753,9 @@ function isValidISBN(isbn) {
 }
 
 function hkplAddAnobiiLink() {
-  if (document.evaluate("//form[@name='limitHoldings']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue) {
+  if (xpath("//form[@name='limitHoldings']")) {
     // has the Limit Holdings form means it is a book detail page
-    var res = document.evaluate("//td[@valign='top' and not(@width)]", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+    var res = xpathl("//td[@valign='top' and not(@width)]");
     for (var i=0 ; i<res.snapshotLength ; i++) {
       addAnobiiLink(res.snapshotItem(i), true);
     }
@@ -761,7 +763,7 @@ function hkplAddAnobiiLink() {
 }
 
 function booksTWAddAnobiiLink() {
-  var res = document.evaluate("//div[@id='pr_data']//span[text()='ISBN：']/../dfn[2]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  var res = xpath("//div[@id='pr_data']//span[text()='ISBN：']/../dfn[2]");
   if (res) {
     addAnobiiLink(res, false);
   }
@@ -863,16 +865,16 @@ function _hkplSuggestion_booksTW(t) {
     return;
   }
 
-  t = utils.extract(t, '<div class="prd001">');
+  t = extract(t, '<div class="prd001">');
 
   DEBUG(t);
 
-  var res = document.evaluate("//form[@name='entryform1']//input[@value='Book']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+  var res = xpath("//form[@name='entryform1']//input[@value='Book']");
   if (res) {
     res.checked = true;
   };
 
-  res = utils.extract(t, '<span>', '</span>');
+  res = extract(t, '<span>', '</span>');
   document.getElementById('title').value = res?res:'';
   // <a href="http://search.books.com.tw/exep/prod_search.php?key=%AA%BB%CC&f=author">Author Name</a>
   res = t.match(/<a href=\"[^\"]*f=author\">([^<]+)/);
@@ -881,14 +883,14 @@ function _hkplSuggestion_booksTW(t) {
   res = t.match(/<a href=\"[^\"]*pub_book\.php\?pubid=[^\"]*\">([^<]+)/);
   document.getElementById('publisher').value = res?res[1]:'';
 
-  t = utils.extract(t, 'pub_book.php?pubid=');
-  res = utils.extract(t, '<dfn>', '</dfn>');
+  t = extract(t, 'pub_book.php?pubid=');
+  res = extract(t, '<dfn>', '</dfn>');
   document.getElementById('place').value = res?res:'';
 
   res = t.match(/<span>ISBN[^<]*<\/span><dfn>([0-9|x|X]+)<\/dfn>/);
   if (res) {
     document.getElementById('isbn').value = res[1];
-    document.evaluate("//form[@name='entryform1']//input[@value='ISBN']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.checked = true;
+    xpath("//form[@name='entryform1']//input[@value='ISBN']").checked = true;
   }
 }
 
@@ -959,7 +961,7 @@ function hkplSuggestion() {
 }
 
 function booksTWAddHKPLSuggestionLink() {
-  var res = document.evaluate("//ul[@class='prf003']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  var res = xpath("//ul[@class='prf003']");
   if (res) {
     var li = document.createElement('li');
     var button = document.createElement('button');
