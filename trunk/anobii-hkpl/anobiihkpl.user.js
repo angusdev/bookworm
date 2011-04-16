@@ -103,6 +103,8 @@ var MULTI_RESULT_SEARCH_INLINE_CLASS = 'bookworm-search-inline';
 
 var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 
+var SEARCH_ISBN_ATTR = 'bookworm-isbn';
+
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
 
@@ -262,6 +264,14 @@ function processBookList() {
           li.appendChild(search);
           ele.parentNode.parentNode.appendChild(li);
           break;
+        case DISPLAY_LIST:
+          var isbn = xpath('../../li[@class="details"]', ele);
+          if (isbn) {
+            isbn = extractISBN(isbn.textContent);
+            if (isbn) {
+              search.setAttribute(SEARCH_ISBN_ATTR, isbn);
+            }
+          }
         default:
           search.setAttribute('style', 'float:right; color:#6a0;');
           ele.parentNode.appendChild(search);
@@ -612,7 +622,7 @@ function attachSearchLinkListener(a) {
 
 function onLoadSearch(searchLink, t, url, bookName) {
   DEBUG('onLoadSearch');
-
+  
   if (t.indexOf('An Error Occured While Submitting Your Request to WebPAC') >= 0) {
     // session id not valid, need to retry
     DEBUG('Get Session ID');
@@ -620,10 +630,27 @@ function onLoadSearch(searchLink, t, url, bookName) {
     return;
   }
 
+  var forceNotFound = false;
+
+  // verify isbn first
+  if (searchLink.getAttribute(SEARCH_ISBN_ATTR)) {
+    if (t.indexOf('<!-- File long.tem ') >= 0) {
+      var isbnRes = t.match(/<TD valign=top>([0-9]{9,13}X?)/g);
+      if (isbnRes) {
+        for (var i = 0; i < isbnRes.length; i++) {
+          var isbn = extractISBN(isbnRes[i]);
+          if (isbn && isbn != searchLink.getAttribute(SEARCH_ISBN_ATTR)) {
+            forceNotFound = true;
+          }
+        }
+      }
+    }
+  }
+
   if (t.indexOf('ERRORError retrieving record') >= 0) {
     searchLink.innerHTML = LANG['ERROR'];
   }
-  else if (t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
+  else if (forceNotFound || t.indexOf('<!-- File nohits.tem : NoHits Page Template File -->') >= 0) {
     searchLink.innerHTML = LANG['NOTFOUND'];
 
     // not found and not in gallery display mode, show link to search books.com.tw
@@ -729,6 +756,18 @@ function onLoadSearch(searchLink, t, url, bookName) {
   searchLink.target = '_blank';
 }
 
+function extractISBN(s) {
+  var isbn = s.match(/\s*([0-9]{9,13}X?)/);
+  if (isbn) {
+    isbn = isbn[1];
+    if (isValidISBN(isbn)) {
+      return isbn;
+    }
+  }
+  
+  return null;
+}
+
 function isValidISBN(isbn) {
   if (isbn && isbn.length == 10) {
     var total = 0;
@@ -770,38 +809,36 @@ function booksTWAddAnobiiLink() {
 }
 
 function addAnobiiLink(ele, showCover) {
-  var isbn = ele.textContent.match(/^[0-9]{9,13}X?/);
+  var isbn = extractISBN(ele.textContent);
   if (isbn) {
-    isbn = isbn[0];
-    if (isValidISBN(isbn)) {
-      var loading = document.createElement('img');
-      loading.src = LOADING_IMG;
-      loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
-      ele.appendChild(loading);
-      utils.crossOriginXMLHttpRequest({
-        method: 'GET',
-        url: 'http://iapp2.anobii.com/InternalAPI/html/iapp2/search/search-book?keyword=' + isbn + '&page=1&itemPerPage=1',
-        onload: function(t) {
-          ele.removeChild(loading);
-          if (t.status == 200) {
-            var obj = utils.jsonParse(t.responseText);
-            if (obj && obj[0].totalRecord > 0) {
+    var loading = document.createElement('img');
+    loading.src = LOADING_IMG;
+    loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
+    ele.appendChild(loading);
+    utils.crossOriginXMLHttpRequest({
+      method: 'GET',
+      url: 'http://iapp2.anobii.com/InternalAPI/html/iapp2/search/search-book?keyword=' + isbn + '&page=1&itemPerPage=1',
+      onload: function(t) {
+        ele.removeChild(loading);
+        if (t.status == 200) {
+          var obj = utils.jsonParse(t.responseText);
+          if (obj && obj[0].totalRecord > 0) {
 
-              obj = obj[0];
-              var bookId = obj.resultFinal[0].encryptItemId;
-              ele.innerHTML = '<a href="http://www.anobii.com/books/' + obj.resultFinal[0].encryptItemId + '" target="_blank">' +
-                              (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
-                              ele.innerHTML.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
-                              (showCover?'margin-top:5px;':'') +
-                              '"/>';
-              addAnobiiRating(ele, bookId);
-            }
+            obj = obj[0];
+            var bookId = obj.resultFinal[0].encryptItemId;
+            ele.innerHTML = '<a href="http://www.anobii.com/books/' + obj.resultFinal[0].encryptItemId + '" target="_blank">' +
+                            (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
+                            ele.innerHTML.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
+                            (showCover?'margin-top:5px;':'') +
+                            '"/>';
+            addAnobiiRating(ele, bookId);
           }
         }
-      });
-    }
+      }
+    });
   }
 }
+
 function addAnobiiRating(ele, bookId) {
   var loading = document.createElement('img');
   loading.src = LOADING_IMG;
