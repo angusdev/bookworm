@@ -1024,7 +1024,7 @@ function booksTWAddHKPLSuggestionLink() {
 // main
 
 // temp solution for Issue #28 Duplicated search HKPL link in Chrome 12
-if (document.body.getAttribute('bookworm-loaded')) {
+if (typeof(document) != 'undefined' && document.body && document.body.getAttribute('bookworm-loaded')) {
   return;
 }
 else {
