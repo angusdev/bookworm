@@ -73,7 +73,9 @@ LANG['GET_SUGGESTION'] = '填寫內容';
 LANG['LOADING'] = '載入中...';
 LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
 
-LANG['ANOBII_RATING'] = 'aNobii 評級'
+LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
+
+LANG['ANOBII_RATING'] = 'aNobii 評級';
 
 var SUGGEST_COUNTRY = new Array();
 SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
@@ -1002,7 +1004,7 @@ function booksTWAddHKPLSuggestionLink() {
   if (res) {
     var li = document.createElement('li');
     var button = document.createElement('button');
-    button.innerHTML = '圖書舘購書建議';
+    button.innerHTML = LANG['HKPL_SUGGESTION'];
     button.addEventListener('click', function(e) {
       var form = document.createElement('form');
       form.action = 'https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html';
