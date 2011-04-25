@@ -130,7 +130,7 @@ var DISPLAY_SHELF = 4;
 var g_displayMode = DISPLAY_BOOK;
 
 function DEBUG(msg) {
-  //if (console && console.log) console.log(msg);
+  //if (typeof unsafeWindow != 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
@@ -255,6 +255,19 @@ function processBookList() {
 
       switch (g_displayMode) {
         case DISPLAY_BOOK:
+          var isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-13:"]');
+          if (!isbn) {
+            var isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-10:"]');
+          }
+          if (isbn) {
+            isbn = xpath('../strong', isbn);
+            if (isbn) {
+              isbn = extractISBN(isbn.textContent);
+              if (isbn) {
+                search.setAttribute(SEARCH_ISBN_ATTR, isbn);
+              }
+            }
+          }
           search.setAttribute('style', 'float:right; color:#6a0;');
           search.className = 'subtitle';
           ele.appendChild(search);
@@ -641,7 +654,7 @@ function onLoadSearch(searchLink, t, url, bookName) {
       if (isbnRes) {
         for (var i = 0; i < isbnRes.length; i++) {
           var isbn = extractISBN(isbnRes[i]);
-          if (isbn && isbn != searchLink.getAttribute(SEARCH_ISBN_ATTR)) {
+          if (isbn && !isEqualISBN(isbn, searchLink.getAttribute(SEARCH_ISBN_ATTR))) {
             forceNotFound = true;
           }
         }
@@ -770,27 +783,117 @@ function extractISBN(s) {
   return null;
 }
 
-function isValidISBN(isbn) {
-  if (isbn && isbn.length == 10) {
+function calcISBNCheckDigit(isbn) {
+  if (isbn && (isbn.length == 9 || isbn.length == 10)) {
     var total = 0;
     for (var i=0 ; i<9 ; i++) {
       total += (i+1) * parseInt(isbn[i], 10);
     }
     total = total % 11;
-    return total==10?(isbn[9] == 'X'):(total == parseInt(isbn[9], 10));
+    return (total==10)?'X':(''+total);
   }
-  else if (isbn && isbn.length == 13) {
+  else if (isbn && (isbn.length == 12 || isbn.length == 13)) {
     var total = 0;
     for (var i=0 ; i<12 ; i++) {
       total += (i%2?3:1) * parseInt(isbn[i], 10);
     }
     total = 10 - total % 10;
     total = total==10?0:total;
-    return total == parseInt(isbn[12], 10);
+    return ''+total;
   }
   else {
+    return '';
+  }
+}
+
+function isValidISBN(isbn) {
+  if (typeof isbn == 'undefined' || !isbn || (isbn.length != 10 && isbn.length != 13)) {
     return false;
   }
+
+  var checkDigit = calcISBNCheckDigit(isbn);
+  return (checkDigit && checkDigit == isbn[isbn.length-1]);
+}
+
+function isbn10To13(isbn) {
+  if (typeof isbn == 'undefined' || !isbn || isbn.length != 10) {
+    return '';
+  }
+  
+  var isbn13 = '978' + isbn.substring(0, 9);
+  return isbn13 + calcISBNCheckDigit(isbn13); 
+}
+
+function isEqualISBN(a, b) {
+  DEBUG('isEqualISBN ' + a + ', ' + b);
+  if (typeof a == 'undefined' || typeof b == 'undefined' || !a || !b || !isValidISBN(a) || !isValidISBN(b)) {
+    return false;
+  }
+  
+  if (a.length == b.length) {
+    return a == b;
+  }
+  if (a.length == 10) {
+    a = isbn10To13(a);
+    DEBUG('isEqualISBN a converted to ' + a);
+  } 
+  if (b.length == 10) {
+    b = isbn10To13(b);
+    DEBUG('isEqualISBN b converted to ' + b);
+  } 
+
+  return a == b;
+}
+
+function testISBNFunctions() {
+  var failCase = [];
+  function assertValid(a) {
+    if (!isValidISBN(a)) {
+      failCase.push(a + ' should be valid');
+    }
+  }
+  function assertNotValid(a) {
+    if (isValidISBN(a)) {
+      failCase.push(a + ' should be invalid');
+    }
+  }
+  function assertEqual(a, b) {
+    if (!isEqualISBN(a, b)) {
+      failCase.push(a + ' and ' + b + ' should be equal');
+    }
+  }
+  function printResult() {
+    if (failCase.length > 0) {
+      alert(failCase.join('\n'));
+    }
+    else {
+      alert('Test complete');
+    }
+  }
+  
+  assertValid('9570518944');
+  assertValid('9789570518948');
+  assertValid('9573324237');
+  assertValid('9789573324232');
+  assertValid('9866702588');
+  assertValid('9789866702587');
+  assertValid('9579016089');
+  assertValid('9789579016087');
+
+  assertNotValid('978957901608');
+  assertNotValid('1234567890');
+  assertNotValid('1234567890123');
+ 
+  assertEqual('9570518944', '9789570518948');
+  assertEqual('9573324237', '9789573324232');
+  assertEqual('9866702588', '9789866702587');
+  assertEqual('9579016089', '9789579016087');
+  assertEqual('9789570518948', '9570518944');
+  assertEqual('9789573324232', '9573324237');
+  assertEqual('9789866702587', '9866702588');
+  assertEqual('9789579016087', '9579016089');
+ 
+  printResult();
 }
 
 function hkplAddAnobiiLink() {
