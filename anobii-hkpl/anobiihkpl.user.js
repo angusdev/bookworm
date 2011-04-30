@@ -1085,7 +1085,7 @@ function hkplSuggestion() {
   var address0 = document.getElementById('address0');
   if (address0) {
     var input = document.createElement('input');
-    input.setAttribute('id', GET_SUGGESTION_BUTTON_ID)
+    input.setAttribute('id', GET_SUGGESTION_BUTTON_ID);
     input.type = 'button';
     input.value = LANG['GET_SUGGESTION'];
     input.addEventListener('click', function(e) {
