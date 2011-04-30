@@ -3,7 +3,7 @@
  * by romannurik
  * see http://gist.github.com/192538
  */
-var XHR_PROXY_PORT_NAME_ = 'XHRProxy_BetterMobileTwitter_';
+var XHR_PROXY_PORT_NAME_ = 'XHRProxy_ANOBII_HKPL_';
 
 /**
  * Should be called by the background page.
@@ -23,7 +23,7 @@ function setupXHRProxy() {
             data: this.responseText
           });
         }
-      }
+      };
       xhr.send();
     });
   });
