@@ -1,6 +1,6 @@
 ﻿// ==UserScript==
 // @name           Bookworm
-// @version        4
+// @version        5
 // @namespace      http://ellab.org/
 // @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-4/ellab-utils.js
@@ -15,8 +15,7 @@
 // @include        http://www.anobii.com/contributors/*
 // @include        http://www.anobii.com/tags/*
 // @include        http://www.anobii.com/news_neighbor*
-// @include        http://libcat.hkpl.gov.hk/webpac_cjk/wgbroker.exe*
-// @include        http://libcat.hkpl.gov.hk/webpac_eng/wgbroker.exe*
+// @include        http://webcat.hkpl.gov.hk/*
 // @include        https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*
 // @include        http://www.books.com.tw/exep/prod/booksfile.php?item=*
 // ==/UserScript==
@@ -779,6 +778,9 @@ function onLoadSearch(searchLink, t, url, searchParam, bookName) {
         div.className = searchLink.className + ' ' + SEARCH_ADDINFO_CLASS + ' ' + SEARCH_ADDINFO_BOOKNAME_CLASS;
         searchLink.parentNode.appendChild(div);
       }
+
+      // the link should point to the book instead of serach result
+      url = parsed.bookURL;
     }
   }
   else if (searchResult.resultCount > 1) {
@@ -936,12 +938,9 @@ function testISBNFunctions() {
 }
 
 function hkplAddAnobiiLink() {
-  if (xpath("//form[@name='limitHoldings']")) {
-    // has the Limit Holdings form means it is a book detail page
-    var res = xpathl("//td[@valign='top' and not(@width)]");
-    for (var i=0 ; i<res.snapshotLength ; i++) {
-      addAnobiiLink(res.snapshotItem(i), true);
-    }
+  var res = xpathl("//div[@id='itemView']/div[@class='itemFields']/table/tbody/tr/td[2]");
+  for (var i=0 ; i<res.snapshotLength ; i++) {
+    addAnobiiLink(res.snapshotItem(i), true);
   }
 }
 
@@ -965,17 +964,22 @@ function addAnobiiLink(ele, showCover) {
       onload: function(t) {
         ele.removeChild(loading);
         if (t.status == 200) {
-          var obj = utils.jsonParse(t.responseText);
-          if (obj && obj[0].totalRecord > 0) {
+          try {
+            var obj = utils.jsonParse(t.responseText);
+            if (obj && obj[0].totalRecord > 0) {
 
-            obj = obj[0];
-            var bookId = obj.resultFinal[0].encryptItemId;
-            ele.innerHTML = '<a href="http://www.anobii.com/books/' + obj.resultFinal[0].encryptItemId + '" target="_blank">' +
-                            (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
-                            ele.innerHTML.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
-                            (showCover?'margin-top:5px;':'') +
-                            '"/>';
-            addAnobiiRating(ele, bookId);
+              obj = obj[0];
+              var bookId = obj.resultFinal[0].encryptItemId;
+              ele.innerHTML = '<a href="http://www.anobii.com/books/' + obj.resultFinal[0].encryptItemId + '" target="_blank">' +
+                              (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
+                              ele.textContent.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
+                              (showCover?'margin-top:5px;':'') +
+                              '"/>';
+              addAnobiiRating(ele, bookId);
+            }
+          }
+          catch (err) {
+            ele.innerHTML = isbn + ' ' + LANG['ERROR'];
           }
         }
       }
@@ -1200,7 +1204,7 @@ if (/anobii\.com/.test(document.location.href)) {
 
   processBookList();
 }
-else if (/wgbroker/.test(document.location.href)) {
+else if (/\/lib\/item\?id=chamo\:\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_BOOK;
 
   hkplAddAnobiiLink();
