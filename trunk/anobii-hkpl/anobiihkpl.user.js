@@ -16,6 +16,7 @@
 // @include        http://www.anobii.com/tags/*
 // @include        http://www.anobii.com/news_neighbor*
 // @include        http://webcat.hkpl.gov.hk/*
+// @include        https://webcat.hkpl.gov.hk/*
 // @include        https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*
 // @include        http://www.books.com.tw/exep/prod/booksfile.php?item=*
 // ==/UserScript==
@@ -99,6 +100,7 @@ var MULTI_RESULT_PREV_LINK_ID_PREFIX = 'bookworm-multiple-prev-';
 var MULTI_RESULT_NEXT_LINK_ID_PREFIX = 'bookworm-multiple-next-';
 
 var SEARCH_LINK_CLASS = 'bookworm-search-book-link'; // css class name for the search link
+var SUPERSEARCH_LINK_CLASS = 'bookworm-supersearch-link'; // css class name for the super search link
 var SEARCH_ADDINFO_CLASS = 'bookworm-search-addinfo'; // css class name for addition info on search result
 var SEARCH_ADDINFO_BOOKS_TW_CLASS = 'bookworm-search-addinfo-books-tw'; // css class name for search books.tw
 var SEARCH_ADDINFO_BOOKNAME_CLASS = 'bookworm-search-addinfo-bookname'; // css class name for additional book name
@@ -240,7 +242,7 @@ function processBookList() {
       }
       if (subtitle) {
         buildSuperSearch(subtitle, subtitle.textContent, i, superSearchStartId);
-        subtitle.className += ' bookworm-anobii';
+        subtitle.className += ' ' + SUPERSEARCH_LINK_CLASS;
       }
 
       var search = document.createElement('a');
@@ -1183,16 +1185,16 @@ if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
 
   if (typeof(GM_addStyle) != 'undefined') {
-    GM_addStyle('.bookworm-anobii.subtitle a:link { color:black; } \
-                 .bookworm-anobii.subtitle a:hover { color:#039; } \
-                 .simple_list_view .shelf .title .bookworm-anobii.subtitle a { font-weight:normal; } \
-                 .gallery_view .shelf dl { padding-bottom:0px !important; } \
-                 a.bookworm-search-book-link { color:#6a0; } \
+    GM_addStyle('.gallery_view .shelf dl { padding-bottom:0px !important; } \
+                 a.bookworm-search-book-link:link { color:#6a0; } \
                  .gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0px; } \
+                 .bookworm-supersearch-link.subtitle a:link { color:black; } \
+                 .bookworm-supersearch-link.subtitle a:hover { color:#039; } \
+                 .simple_list_view .shelf .title .bookworm-supersearch-link.subtitle a { font-weight:normal; } \
                  .bookworm-search-addinfo { clear:both; float:right; } \
-                 .title a.bookworm-search-addinfo-books-tw { color:#6a0; } \
+                 .title a.bookworm-search-addinfo-books-tw:link, .list_view .title:hover a.bookworm-search-addinfo-books-tw, #product_info .info a.bookworm-search-addinfo-books-tw { color:#6a0; } \
                  .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; } \
-                 .gallery_view .bookworm-search-addinfo-bookname { width:100%; }');
+                 .gallery_view .bookworm-search-addinfo-bookname: { width:100%; }');
   }
 
   document.body.addEventListener('click', function(e) {
