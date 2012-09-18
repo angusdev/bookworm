@@ -3,8 +3,7 @@
 // @version        5
 // @namespace      http://ellab.org/
 // @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
-// @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-4/ellab-utils.js
-// @require        http://ellab-gm.googlecode.com/svn/tags/lib-big5-1/ellab-big5.js
+// @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-5/ellab-utils.js
 // @resource       loading http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-3/loading.gif
 // @resource       shadowAlpha http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-3/shadowAlpha.png
 // @include        http://www.anobii.com/books/*
@@ -25,9 +24,13 @@
 Author: Angus http://angusdev.mysinablog.com/
               http://angusdev.blogspot.com/
               http://twitter.com/angusdev
-Date:   2011-04-09
+Date:   2012-09-18
 
 Version history:
+5    18-Sep-2012    Issue #29 Search by subtitle	 
+                    Issue #30 Cross check HKPL ISBN to avoid displaying the result of another book with same book name	
+                    Issue #36 HKPL 2012 Jan revamp
+                    Issue #37 Upgrade to Chrome Manifest version 2	 
 4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link
                     Issue #23 Fix the bug that show multiple search books.com.tw links
                     Issue #24 Link from books.com.tw to anobii
@@ -408,7 +411,6 @@ function onClickSearch(searchLink) {
     utils.crossOriginXMLHttpRequest({
       method: 'GET',
       url: url,
-      //overrideMimeType: 'text/html; charset=big5',
       onload: function(t) {
         g_loading = false;
         onLoadSearch(searchLink, t.responseText, url, searchParam, bookName);
