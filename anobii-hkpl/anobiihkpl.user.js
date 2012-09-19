@@ -27,10 +27,10 @@ Author: Angus http://angusdev.mysinablog.com/
 Date:   2012-09-18
 
 Version history:
-5    18-Sep-2012    Issue #29 Search by subtitle	 
-                    Issue #30 Cross check HKPL ISBN to avoid displaying the result of another book with same book name	
+5    18-Sep-2012    Issue #29 Search by subtitle
+                    Issue #30 Cross check HKPL ISBN to avoid displaying the result of another book with same book name
                     Issue #36 HKPL 2012 Jan revamp
-                    Issue #37 Upgrade to Chrome Manifest version 2	 
+                    Issue #37 Upgrade to Chrome Manifest version 2
 4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link
                     Issue #23 Fix the bug that show multiple search books.com.tw links
                     Issue #24 Link from books.com.tw to anobii
@@ -145,7 +145,7 @@ var SEARCH_RESULT_NOTFOUND = 3;
 var SEARCH_RESULT_ERROR = 4;
 
 function DEBUG(msg) {
-  if (typeof unsafeWindow != 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
+  //if (typeof unsafeWindow != 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
