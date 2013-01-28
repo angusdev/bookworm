@@ -50,14 +50,17 @@ Version history:
 1    10-Nov-2009    Initial release
 */
 
+/*jshint devel:true */
+/*global chrome, console, window, org, GM_addStyle */
 (function(){
+'use strict';
 
 var utils = org.ellab.utils;
 var extract = org.ellab.utils.extract;
 var xpath = org.ellab.utils.xpath;
 var xpathl = org.ellab.utils.xpathl;
 
-var LANG = new Array();
+var LANG = [];
 LANG['SEARCH'] = '搜尋';
 LANG['SEARCH_HKPL'] = '搜尋公共圖書館';
 LANG['SEARCH_PREV'] = '上一頁';
@@ -81,7 +84,7 @@ LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
 LANG['ANOBII_RATING'] = 'aNobii 評級';
 
-var SUGGEST_COUNTRY = new Array();
+var SUGGEST_COUNTRY = [];
 SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
 
 var HKPL_TEXT_ON_SHELF = '館內架上';
@@ -89,11 +92,11 @@ var HKPL_TEXT_CHECKED_OUT = '借出';
 var HKPL_TEXT_IN_TRANSIT = '轉移中';
 var HKPL_TEXT_CLOSED_STACK = '閉架';
 
-var ONSHELF_LIB_REMOVE_REGEXP= [
+var ONSHELF_LIB_REMOVE_REGEXP = [
   [/公共圖書館/g, ''],
   [/香港中央圖書館/g, '中央'],
   [/&LTscript>processData%28'.*'%29;&LT\/script>/g, function(m) { return eval('"\\u'+m.match(/%28'(.*)'%29/)[1]+'";'); } ],
-  [/%[a-zA-Z0-9]{2}/g, function(m) { return unescape(m); } ]
+  [/%[a-zA-Z0-9]{2}/g, function(m) { return decodeURIComponent(m); } ]
 ];
 
 var SEARCH_LINK_ID_PREFIX = 'bookworm-search-id-';
@@ -197,7 +200,7 @@ function parent(node, tag) {
 function processBookList() {
   g_displayMode = DISPLAY_BOOK;
   var res = xpathl("//div[@id='product_info']/div[@class='info']/h1[@class='title']");
-  if (res.snapshotLength == 0) {
+  if (res.snapshotLength === 0) {
     res = xpathl("//table[@class='simple_list_view_container']//td[@class='title']//a");
     if (res.snapshotLength > 0) {
       g_displayMode = DISPLAY_SIMPLE;
@@ -228,19 +231,20 @@ function processBookList() {
     var matched = ele.innerHTML.match(/^\s*([^<]+)/);
     if (matched) {
       var bookName = matched[1].replace(/^s+/, '').replace(/\s+$/, '');
+      var subtitle;
 
       var superSearchStartId = buildSuperSearch(ele, bookName, i, 0);
 
       switch (g_displayMode) {
         case DISPLAY_BOOK:
-          var subtitle = xpath("../h2[@class='subtitle']", ele);
+          subtitle = xpath("../h2[@class='subtitle']", ele);
           break;
         case DISPLAY_LIST:
         case DISPLAY_GALLERY:
-          var subtitle = xpath("../../li[@class='subtitle']", ele);
+          subtitle = xpath("../../li[@class='subtitle']", ele);
           break;
         case DISPLAY_SIMPLE:
-          var subtitle = xpath("./span[@class='subtitle']", ele);
+          subtitle = xpath("./span[@class='subtitle']", ele);
           break;
       }
       if (subtitle) {
@@ -250,17 +254,18 @@ function processBookList() {
 
       var search = document.createElement('a');
       search.innerHTML = LANG['SEARCH_HKPL'];
-      search.href = 'javascript:void(0)';
+      search.href = '#';
       search.className = SEARCH_LINK_CLASS;
       search.setAttribute('name', bookName);
       search.setAttribute('id', SEARCH_LINK_ID_PREFIX + i);
       attachSearchLinkListener(search);
 
+      var isbn;
       switch (g_displayMode) {
         case DISPLAY_BOOK:
-          var isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-13:"]');
+          isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-13:"]');
           if (!isbn) {
-            var isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-10:"]');
+            isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-10:"]');
           }
           if (isbn) {
             isbn = xpath('../strong', isbn);
@@ -289,13 +294,16 @@ function processBookList() {
           }
           break;
         case DISPLAY_LIST:
-          var isbn = xpath('../../li[@class="details"]', ele);
+          isbn = xpath('../../li[@class="details"]', ele);
           if (isbn) {
             isbn = extractISBN(isbn.textContent);
             if (isbn) {
               search.setAttribute(SEARCH_ISBN_ATTR, isbn);
             }
           }
+          search.setAttribute('style', 'float:right; color:#6a0;');
+          ele.parentNode.appendChild(search);
+          break;
         default:
           search.setAttribute('style', 'float:right; color:#6a0;');
           ele.parentNode.appendChild(search);
@@ -341,11 +349,10 @@ function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
     }
   }
   ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
-  for (var j=0; j<superSearchWords.length; j++) {
-    var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + (superSearchStartId + j));
+  for (var k=0; k<superSearchWords.length; k++) {
+    var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + (superSearchStartId + k));
     if (superSearch) {
-      var searchPhrase = bookName.substring(0, j+1);
-      var searchPhrase = superSearchWords.slice(0, j+1).join('');
+      var searchPhrase = superSearchWords.slice(0, k+1).join('');
       superSearch.setAttribute('name', searchPhrase);
       superSearch.setAttribute('title', LANG['SEARCH'] +' ' + searchPhrase);
       attachSearchLinkListener(superSearch);
@@ -389,17 +396,18 @@ function onClickSearch(searchLink) {
 
   var bookName = searchLink.getAttribute('name');
   var searchName = originSearchLink.getAttribute('name');
+  var url;
 
   var isbn = originSearchLink.getAttribute(SEARCH_ISBN_ATTR);
   if (isbn) {
     searchParam.type = SEARCH_TYPE_ISBN;
     searchParam.isbn = isbn;
-    var url = g_domainPrefix + '/search/query?match_1=PHRASE&field_1=isbn&term_1=' + isbn + '&theme=WEB';
+    url = g_domainPrefix + '/search/query?match_1=PHRASE&field_1=isbn&term_1=' + isbn + '&theme=WEB';
   }
   else if (searchName) {
     searchParam.type = SEARCH_TYPE_NAME;
     searchParam.name = searchName;
-    var url = g_domainPrefix + '/search/query?match_1=PHRASE&field_1=t&term_1=' + encodeURIComponent(searchName) + '&sort=dateBookAdded%3Bdescending&theme=WEB';
+    url = g_domainPrefix + '/search/query?match_1=PHRASE&field_1=t&term_1=' + encodeURIComponent(searchName) + '&sort=dateBookAdded%3Bdescending&theme=WEB';
   }
   else if (originSearchLink.getAttribute('searchurl')) {
     searchParam.type = SEARCH_TYPE_URL;
@@ -413,14 +421,14 @@ function onClickSearch(searchLink) {
       url: url,
       onload: function(t) {
         g_loading = false;
-        onLoadSearch(searchLink, t.responseText, url, searchParam, bookName);
+        onLoadSearchHKPL(searchLink, t.responseText, url, searchParam, bookName);
       }
     });
   }
   else {
     // make a fake response to report error
     g_loading = false;
-    onLoadSearch(searchLink, '', url);
+    onLoadSearchHKPL(searchLink, '', url);
   }
 }
 
@@ -454,11 +462,11 @@ function moveMultipleResultLayer(divShadow, searchLink) {
 
 function buildMultipleResult(searchLink, result) {
   DEBUG('buildMultipleResult');
-  if (!result.booklist || result.booklist.length == 0) return;
+  if (!result.booklist || result.booklist.length === 0) return;
 
   var html = '';
-  for (var i=0;i<result.booklist.length;i++) {
-    var book = result.booklist[i];
+  for (var i_result=0 ; i_result<result.booklist.length ; i_result++) {
+    var book = result.booklist[i_result];
     var tr = '<tr>' +
              '<td><a href="' + book.bookURL + '" target="_blank">' + utils.encodeHTML(book.bookName) + '</a></td>' +
              '<td>' + book.onshelfTotal + LANG['FOUND3'] +
@@ -477,7 +485,7 @@ function buildMultipleResult(searchLink, result) {
 
     // add prev/next page link if needed
     if (result.totalPage > 1) {
-      function createSearchInlineLink(id, url, page, text) {
+      var createSearchInlineLink = function(id, url, page, text) {
         if (url.match(/pageNumber=\d+/)) {
           url = url.replace(/pageNumber=\d+/, 'pageNumber=' + page);
         }
@@ -487,49 +495,52 @@ function buildMultipleResult(searchLink, result) {
         return '<a style="white-space:nowrap; color:#6a0;" class="' + MULTI_RESULT_SEARCH_INLINE_CLASS + '" href="javascript:void(0);"' +
                (id?' id="' + id + '"':'') +
                ' searchurl="' + url + '">' + text + '</a>';
-      }
+      };
       var prevHTML = result.currPage>1?createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, result.currPage - 1, LANG['SEARCH_PREV']):'';
       var nextHTML = result.currPage<result.totalPage?createSearchInlineLink(MULTI_RESULT_NEXT_LINK_ID_PREFIX + searchId, result.searchURL, result.currPage + 1, LANG['SEARCH_NEXT']):'';
       var pagingHTML = '';
       var lastPageInPagingHTML = 0;
       // first 3 pages
-      for (var i=1;i<=Math.min(3, result.totalPage);i++) {
-        DEBUG(i);
-        lastPageInPagingHTML = i;
-        pagingHTML += '&nbsp;&nbsp;' + (result.currPage==i?i:createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i, i));
+      for (var i_StartPage=1 ; i_StartPage<=Math.min(3, result.totalPage) ; i_StartPage++) {
+        DEBUG('Start Page:' + i_StartPage);
+        lastPageInPagingHTML = i_StartPage;
+        pagingHTML += '&nbsp;&nbsp;' +
+          (result.currPage==i_StartPage?i_StartPage:createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i_StartPage, i_StartPage));
       }
       // middle 5 pages
       DEBUG('lastPageInPagingHTML='+lastPageInPagingHTML+'result.currPage-2='+(result.currPage-2)+',result.currPage+2='+(result.currPage+2)+',result.totalPage='+result.totalPage);
       var middlePagesStartPage = Math.max(4, result.currPage-2);
-      for (var i=middlePagesStartPage;i<=Math.min(result.currPage+2, result.totalPage);i++) {
-        DEBUG(i);
-        if (i == middlePagesStartPage) {
-          if (i == lastPageInPagingHTML+2) {
+      for (var i_midPage=middlePagesStartPage ; i_midPage<=Math.min(result.currPage+2, result.totalPage) ; i_midPage++) {
+        DEBUG('Middle Page:' + i_midPage);
+        if (i_midPage == middlePagesStartPage) {
+          if (i_midPage == lastPageInPagingHTML+2) {
             // if that gap is only 1 page (e.g. 2 3 4 ... 6 7 8), we should show the page number instead of a elipsis symbol
-            pagingHTML += '&nbsp;&nbsp;' + createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i-1, i-1);
+            pagingHTML += '&nbsp;&nbsp;' + createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i_midPage-1, i_midPage-1);
           }
-          else if (i > lastPageInPagingHTML+2) {
+          else if (i_midPage > lastPageInPagingHTML+2) {
             pagingHTML += '&nbsp;&nbsp;...';
           }
         }
-        lastPageInPagingHTML = i;
-        pagingHTML += '&nbsp;&nbsp;' + (result.currPage==i?i:createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i, i));
+        lastPageInPagingHTML = i_midPage;
+        pagingHTML += '&nbsp;&nbsp;' +
+          (result.currPage==i_midPage?i_midPage:createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i_midPage, i_midPage));
       }
       // final 3 pages
       DEBUG('lastPageInPagingHTML='+lastPageInPagingHTML+'result.currPage+2='+(result.currPage+2)+',result.totalPage-2='+(result.totalPage-2)+',result.totalPage='+result.totalPage);
       var finalPagesStartPage = Math.max(result.currPage+3, result.totalPage-2);
-      for (var i=finalPagesStartPage;i<=result.totalPage;i++) {
-        DEBUG(i);
-        if (i == finalPagesStartPage) {
-          if (i == lastPageInPagingHTML+2) {
+      for (var i_finalPage=finalPagesStartPage;i_finalPage<=result.totalPage;i_finalPage++) {
+        DEBUG('Final Page:' + i_finalPage);
+        if (i_finalPage == finalPagesStartPage) {
+          if (i_finalPage == lastPageInPagingHTML+2) {
             // if that gap is only 1 page (e.g. 2 3 4 ... 6 7 8), we should show the page number instead of a elipsis symbol
-            pagingHTML += '&nbsp;&nbsp;' + createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i-1, i-1);
+            pagingHTML += '&nbsp;&nbsp;' + createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i_finalPage-1, i_finalPage-1);
           }
-          else if (i > lastPageInPagingHTML+2) {
+          else if (i_finalPage > lastPageInPagingHTML+2) {
             pagingHTML += '&nbsp;&nbsp;...';
           }
         }
-        pagingHTML += '&nbsp;&nbsp;' + (result.currPage==i?i:createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i, i));
+        pagingHTML += '&nbsp;&nbsp;' +
+          (result.currPage==i_finalPage?i_finalPage:createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, i_finalPage, i_finalPage));
       }
       if (prevHTML && nextHTML) {
         // add the space separater
@@ -557,23 +568,13 @@ function buildMultipleResult(searchLink, result) {
     divShadow.setAttribute('style',
                            'position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
 
-    divContent = document.createElement('div');
+    var divContent = document.createElement('div');
     divContent.innerHTML = html;
 
-    // attach the click event of search link
     var searchRes = utils.getElementsByClassName(MULTI_RESULT_SEARCH_INLINE_CLASS, divContent);
-    for (var i=0;i<searchRes.length;i++) {
-      var search = searchRes[i];
-      search.addEventListener('click', function(e) {
-        if (e.target.getAttribute('already-visited')) {
-          e.stopPropagation();
-        }
-        else {
-          onClickSearch(e.target);
-          e.stopPropagation();
-          e.preventDefault();
-        }
-      }, false);
+    for (var i_searchRes=0 ; i_searchRes<searchRes.length ; i_searchRes++) {
+      var search = searchRes[i_searchRes];
+      attachSearchLinkListener(search);
     }
 
     if (searchLinkId.match('^' + SEARCH_LINK_ID_PREFIX)) {
@@ -638,7 +639,7 @@ function parseSearchHKPLResult(t) {
     }
   }
 
-  var t = extract(t, '<div class="recordNumber">');
+  t = extract(t, '<div class="recordNumber">');
   var booklink = t.match(/<a href=\"..(\/lib\/item\?id=chamo\:\d+&amp;theme=WEB)\".*>([^<]+)<\/a>/);
 
   if (booklink) {
@@ -671,21 +672,20 @@ function parseSearchHKPLResult(t) {
 }
 
 // attache the click event to the search link and super search link
-function attachSearchLinkListener(a) {
-  a.addEventListener('click', function(e) {
-    if (e.target.getAttribute('already-visited')) {
-      e.stopPropagation();
-    }
-    else {
+function attachSearchLinkListener(ele) {
+  ele.addEventListener('click', function(e) {
+    if (!e.target.getAttribute('already-visited')) {
       onClickSearch(e.target);
-      e.stopPropagation();
-      e.preventDefault();
     }
+    e.stopPropagation();
+    e.preventDefault();
+
+    return false;
   }, false);
 }
 
-function onLoadSearch(searchLink, t, url, searchParam, bookName) {
-  DEBUG('onLoadSearch:type=' + searchParam.type + ',url=' + url);
+function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
+  DEBUG('onLoadSearchHKPL:type=' + searchParam.type + ',url=' + url);
 
   var searchResult = { status:0, searchURL:url, resultCount:0, currPage:0, totalPage:0, itemsPerPage:0, booklist:[] };
   var oldt = t;
@@ -723,7 +723,7 @@ function onLoadSearch(searchLink, t, url, searchParam, bookName) {
     }
   }
 
-  if (forceNotFound || searchResult.resultCount == 0) {
+  if (forceNotFound || searchResult.resultCount === 0) {
     // not found
     searchLink.innerHTML = LANG['NOTFOUND'];
 
@@ -732,7 +732,7 @@ function onLoadSearch(searchLink, t, url, searchParam, bookName) {
     if (bookName && g_displayMode != DISPLAY_GALLERY) {
       var a = document.createElement('a');
       a.innerHTML = LANG['SEARCH_BOOKS_TW'];
-      a.href = 'javascript:void(0)';
+      a.href = '#';
       a.setAttribute('bookname', bookName);
       a.className = searchLink.className + ' ' + SEARCH_ADDINFO_CLASS + ' ' + SEARCH_ADDINFO_BOOKS_TW_CLASS;
       a.addEventListener('click', function(e) {
@@ -751,6 +751,9 @@ function onLoadSearch(searchLink, t, url, searchParam, bookName) {
         document.body.appendChild(form);
         form.submit();
         document.body.removeChild(form);
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
       }, false);
       searchLink.parentNode.appendChild(a);
     }
@@ -759,32 +762,32 @@ function onLoadSearch(searchLink, t, url, searchParam, bookName) {
     // single result
     searchResult.status = SEARCH_RESULT_SINGLE;
 
-    var parsed = parseSearchHKPLResult(t);
-    if (parsed) {
-      if (parsed.onshelfLib && parsed.onshelfLib.length) {
+    var parsedSingle = parseSearchHKPLResult(t);
+    if (parsedSingle) {
+      if (parsedSingle.onshelfLib && parsedSingle.onshelfLib.length) {
         var onshelfLibString = '';
-        for (var i=0;i<parsed.onshelfLib.length;i++) {
-          if (parsed.onshelfLib[i].count) {
-            onshelfLibString += (onshelfLibString?', ':'') + parsed.onshelfLib[i].name + (parsed.onshelfLib[i].count > 1?'('+ parsed.onshelfLib[i].count + ')':'');
+        for (var i=0;i<parsedSingle.onshelfLib.length;i++) {
+          if (parsedSingle.onshelfLib[i].count) {
+            onshelfLibString += (onshelfLibString?', ':'') + parsedSingle.onshelfLib[i].name + (parsedSingle.onshelfLib[i].count > 1?'('+ parsedSingle.onshelfLib[i].count + ')':'');
           }
         }
         searchLink.title = onshelfLibString;
       }
 
-      searchLink.innerHTML = parsed.onshelfTotal + LANG['FOUND3'] +
-                             (parsed.reserveCount?' ' + parsed.reserveCount + LANG['FOUND4']:'');
+      searchLink.innerHTML = parsedSingle.onshelfTotal + LANG['FOUND3'] +
+                             (parsedSingle.reserveCount?' ' + parsedSingle.reserveCount + LANG['FOUND4']:'');
 
       // show the book name if it is search by name, in case the result is incorrect
       if (searchParam.type == SEARCH_TYPE_NAME) {
         var div = document.createElement('div');
-        div.innerHTML = parsed.bookName;
-        div.title = utils.decodeHTML(parsed.bookName);
+        div.innerHTML = parsedSingle.bookName;
+        div.title = utils.decodeHTML(parsedSingle.bookName);
         div.className = searchLink.className + ' ' + SEARCH_ADDINFO_CLASS + ' ' + SEARCH_ADDINFO_BOOKNAME_CLASS;
         searchLink.parentNode.appendChild(div);
       }
 
       // the link should point to the book instead of serach result
-      url = parsed.bookURL;
+      url = parsedSingle.bookURL;
     }
   }
   else if (searchResult.resultCount > 1) {
@@ -792,17 +795,17 @@ function onLoadSearch(searchLink, t, url, searchParam, bookName) {
 
     searchLink.innerHTML = LANG['MULTIPLE'];
 
-    var t = extract(oldt, '<li class="record">');
+    t = extract(oldt, '<li class="record">');
     while (t) {
-      var parsed = parseSearchHKPLResult(t);
-      if (parsed) {
-        searchResult.booklist.push(parsed);
+      var parsedMultiple = parseSearchHKPLResult(t);
+      if (parsedMultiple) {
+        searchResult.booklist.push(parsedMultiple);
       }
       t = extract(t, '<li class="record">');
     }
 
     // page links
-    var t = extract(oldt, '<div class="pageLinks">', '</div>');
+    t = extract(oldt, '<div class="pageLinks">', '</div>');
   }
   else {
     searchLink.innerHTML = LANG['UNKNOWN'];
@@ -829,8 +832,8 @@ function extractISBN(s) {
 }
 
 function calcISBNCheckDigit(isbn) {
+  var total = 0;
   if (isbn && (isbn.length == 9 || isbn.length == 10)) {
-    var total = 0;
     for (var i=0 ; i<9 ; i++) {
       total += (i+1) * parseInt(isbn[i], 10);
     }
@@ -838,9 +841,8 @@ function calcISBNCheckDigit(isbn) {
     return (total==10)?'X':(''+total);
   }
   else if (isbn && (isbn.length == 12 || isbn.length == 13)) {
-    var total = 0;
-    for (var i=0 ; i<12 ; i++) {
-      total += (i%2?3:1) * parseInt(isbn[i], 10);
+    for (var j=0 ; j<12 ; j++) {
+      total += (j%2?3:1) * parseInt(isbn[j], 10);
     }
     total = 10 - total % 10;
     total = total==10?0:total;
@@ -1011,13 +1013,16 @@ function addAnobiiRating(ele, bookId) {
             if (obj.averageRate > 0) {
               var rateInt = parseInt(obj.averageRate, 10);
               var ratePtFive = (obj.averageRate == rateInt)?0:1;
+              // filled star
               for (var i=0; i<rateInt; i++) {
                 rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif" width="10" height="10"/>';
               }
+              // half filled star
               if (ratePtFive) {
                 rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_05.gif" width="10" height="10"/>';
               }
-              for (var i=rateInt+ratePtFive; i<5; i++) {
+              // unfilled star
+              for (var j=rateInt+ratePtFive; j<5; j++) {
                 rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif" width="10" height="10"/>';
               }
             }
@@ -1061,7 +1066,7 @@ function _hkplSuggestion_booksTW(t) {
   var res = xpath("//form[@name='entryform1']//input[@value='Book']");
   if (res) {
     res.checked = true;
-  };
+  }
 
   res = extract(t, '<span>', '</span>');
   document.getElementById('title').value = res?res:'';
@@ -1115,16 +1120,21 @@ function _hkplSuggestion_onClick() {
 function hkplSuggestion() {
   var place = document.getElementById('place');
   if (place) {
+    var suggestButtonOnClick = function(e) {
+      place.value = e.target.getAttribute('value') + ' ' + place.value;
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
     var suggestCountry = SUGGEST_COUNTRY['TC'];
     for (var i=0; i<suggestCountry.length; i++) {
       var a = document.createElement('a');
       a.innerHTML = suggestCountry[i];
-      a.href = 'javascript:void(0)';
+      a.href = '#';
       a.setAttribute('style', 'margin-left:10px;');
       a.setAttribute('value', suggestCountry[i]);
-      a.addEventListener('click', function(e) {
-        place.value = e.target.getAttribute('value') + ' ' + place.value;
-      }, false);
+      a.addEventListener('click', suggestButtonOnClick, false);
       place.parentNode.appendChild(a);
     }
   }
@@ -1186,6 +1196,7 @@ else {
 if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
 
+  /*jshint multistr:true, newcap:false */
   if (typeof(GM_addStyle) != 'undefined') {
     GM_addStyle('.gallery_view .shelf dl { padding-bottom:0px !important; } \
                  a.bookworm-search-book-link:link { color:#6a0; } \
@@ -1198,6 +1209,7 @@ if (/anobii\.com/.test(document.location.href)) {
                  .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; } \
                  .gallery_view .bookworm-search-addinfo-bookname: { width:100%; }');
   }
+  /*jshint multistr:false, newcap:true */
 
   document.body.addEventListener('click', function(e) {
     var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
