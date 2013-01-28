@@ -1,6 +1,6 @@
 {
   "name": "Bookworm",
-  "version": "5",
+  "version": "6",
   "manifest_version": 2,
   "description": "Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library in aNobii pages.",
   "icons": {
@@ -24,7 +24,7 @@
   ],
   "minimum_chrome_version": "20",
   "permissions": [
-    "http://webcat.hkpl.gov.hk/", "http://iapp2.anobii.com/", "http://www.books.com.tw/"
+    "http://webcat.hkpl.gov.hk/", "http://iapp2.anobii.com/", "http://www.books.com.tw/, http://api.douban.com/"
   ],
   "web_accessible_resources": ["loading.gif", "shadowAlpha.png"]
 }
