@@ -51,7 +51,7 @@ Version history:
 */
 
 /*jshint devel:true */
-/*global chrome, console, window, org, GM_addStyle */
+/*global chrome, console, window, org, GM_addStyle, unsafeWindow */
 (function(){
 'use strict';
 
@@ -83,6 +83,12 @@ LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http:
 LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
 LANG['ANOBII_RATING'] = 'aNobii 評級';
+LANG['DOUBAN_REVIEW'] = '豆瓣評論';
+LANG['DOUBAN_HEADING'] = '$1 則評論';
+LANG['DOUBAN_HELPFUL'] = '$1 個人認為這是很有幫助';
+LANG['DOUBAN_MORE'] = ' (繼續) ';
+LANG['DOUBAN_COMMENT'] = ' ($1 回應) ';
+LANG['DOUBAN_TIME'] = '在 $1 說';
 
 var SUGGEST_COUNTRY = [];
 SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
@@ -116,6 +122,9 @@ var MULTI_RESULT_SEARCH_INLINE_CLASS = 'bookworm-search-inline';
 var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 
 var SEARCH_ISBN_ATTR = 'bookworm-isbn';
+
+var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review';
+var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-doupan-review-fullinfo'; // the attribute name to store the fullinfo review json url
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
@@ -194,6 +203,17 @@ function parent(node, tag) {
       return node;
     }
     node = node.parentNode;
+  }
+}
+
+// MMM D YYYY
+function formatAnobiiDate(d) {
+  if (d) {
+    var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return m[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  }
+  else {
+    return '';
   }
 }
 
@@ -279,6 +299,9 @@ function processBookList() {
           search.setAttribute('style', 'float:right; color:#6a0;');
           search.className += ' subtitle';
           ele.appendChild(search);
+
+          anobiiAddDoubanComments(isbn);
+
           break;
         case DISPLAY_GALLERY:
           search.className += ' subtitle';
@@ -676,9 +699,10 @@ function attachSearchLinkListener(ele) {
   ele.addEventListener('click', function(e) {
     if (!e.target.getAttribute('already-visited')) {
       onClickSearch(e.target);
+      // don't need to prevent default if already-visit (i.e go to the url directly)
+      e.preventDefault();
     }
     e.stopPropagation();
-    e.preventDefault();
 
     return false;
   }, false);
@@ -817,6 +841,216 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
   if (searchResult.status == SEARCH_RESULT_MULTI) {
     buildMultipleResult(searchLink, searchResult);
   }
+}
+
+function parseDoubanValue(data, k, v, defaultValue) {
+  var res;
+  var key = data[k];
+  if (key) {
+    if (v) {
+      res = key[v];
+    }
+    else {
+      // no v specified
+      res = key;
+    }
+  }
+
+  return res || defaultValue;
+}
+
+function parseDoubanLinks(obj) {
+  var res = {};
+  for (var i=0 ; i<obj.length ; i++) {
+    res[obj[i]['@rel']] = obj[i]['@href'];
+  }
+
+  return res;
+}
+
+function anobiiAddDoubanComments_onload(review) {
+  if (review.entry.length === 0) return;
+
+  // existing anobii review tab
+  var lireview = xpath('//ul[@id="product_content_tabs"]/li[@ref="reviews"]');
+  if (!lireview) return;
+
+  var totalResult = review['opensearch:totalResults']['$t'];
+
+  // store the list of review in a dummy div for tab switching
+  var divDoubanReview = document.createElement('div');
+  divDoubanReview.style.display = 'none';
+  divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
+  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + LANG['DOUBAN_HEADING'].replace('$1', totalResult) + ' </strong></h2>';
+  DEBUG('Douban review entry=' + review.entry.length);
+  for (var i=0 ; i<review.entry.length ; i++) {
+    var entry = review.entry[i];
+    var authorLinks = parseDoubanLinks(entry.author.link);
+    var authorIconHTML = '';
+    if (authorLinks['icon']) {
+       authorIconHTML = '<a href="' + authorLinks['alternate'] + '"><img height="24" width="24" src="' + authorLinks['icon'] + '"></a>';
+    }
+    DEBUG('Douban author link');
+    DEBUG(authorLinks);
+
+    // comment time
+    var reviewTime = null;
+    try {
+      reviewTime = new Date(Date.parse(entry['published']['$t']));
+    }
+    catch (err) {
+      //console.log(err);
+    }
+
+    // rating
+    var rating = parseDoubanValue(entry, 'gd:rating', '@value', 0);
+    var ratingHTML = '';
+    DEBUG('Douban rating=' + rating);
+    if (rating) {
+      for (var i_rating=0 ; i_rating < parseInt(rating, 10) ; i_rating++) {
+        ratingHTML += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif">';
+      }
+      for (i_rating=0 ; i_rating < 5 - parseInt(rating, 10) ; i_rating++) {
+        ratingHTML += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif">';
+      }
+    }
+
+    // useful / useless
+    var useful = parseDoubanValue(entry, 'db:votes', '@value', 0);
+    var useless = parseDoubanValue(entry, 'db:useless', '@value', 0);
+    var helpfulHTML = '';
+    if (useful + useless > 0) {
+      helpfulHTML = '<p class="helpful">' + LANG['DOUBAN_HELPFUL'].replace('$1', useful + '/' + (useful + useless)) + '</p>';
+    }
+
+    // reviwe fullinfo url
+    var reviewLinks = parseDoubanLinks(entry.link);
+    var reviewFullInfoURL = reviewLinks['alternate'].replace('\/review\/', '/j/review/') + '/fullinfo';
+
+    // comment count
+    var commentCount = parseDoubanValue(entry, 'db:comments', '@value', 0);
+    DEBUG('Douban comment=' + commentCount);
+    var commentCountHTML = '';
+    if (commentCount) {
+      commentCountHTML = ' | <a href="' + reviewLinks['alternate'] + '" class="feedbacks_link" target="_blank">' + LANG['DOUBAN_COMMENT'].replace('$1', commentCount) + '</a>';
+    }
+
+    // follow Anobii comment HTML structure to simulate the UI
+    var html =
+      /*jshint multistr:true */
+      '<ul class="comment_block"> \
+        <li> \
+          <div class="comment_entry"> \
+            <div class="comment_entry_inner"> \
+              <div class="comment_entry_content">' +
+                helpfulHTML +
+                ratingHTML +
+        '       <h4>' + entry['title']['$t'] + '</h4> \
+                <div class="comment_shorten"> \
+                  <p>' +
+                    entry['summary']['$t'] +
+                    '<a href="' + reviewLinks['alternate'] +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + reviewFullInfoURL + '">' +
+                    LANG['DOUBAN_MORE'].replace('$1', parseDoubanValue(entry, 'db:comments', '@value', 0)) + '</a>' +
+        '         </p> \
+                </div> \
+              </div> \
+              <div class="clear"></div> \
+            </div> \
+          </div> \
+          <p class="comment_details">' +
+            authorIconHTML +
+        '   <a href="' + authorLinks['alternate'] + '">' + entry['author']['name']['$t'] + '</a>' +
+            LANG['DOUBAN_TIME'].replace('$1', formatAnobiiDate(reviewTime)) +
+            commentCountHTML +
+        ' </p> \
+        </li> \
+      </ul>';
+      /*jshint multistr:false */
+    divDoubanReview.innerHTML += html;
+  }
+  document.body.appendChild(divDoubanReview);
+
+  // create the Douban review tab
+  var liDoubanReview = document.createElement('li');
+  liDoubanReview.setAttribute('ref', 'douban-review');
+  var a = document.createElement('a');
+  a.href = '#';
+  a.innerHTML = LANG['DOUBAN_REVIEW'] + ' <small>(' + totalResult + ')</small>';
+  a.addEventListener('click', function(e) {
+    // turn off the active tab
+    var from;
+    var lis = document.getElementById('product_content_tabs').getElementsByTagName('li');
+    for (var i=0 ; i<lis.length ; i++) {
+      var thisli = lis[i];
+      if (utils.hasClass(thisli, 'selected')) {
+        utils.removeClass(thisli, 'selected');
+        from = thisli.getAttribute('ref');
+      }
+    }
+    // make douban review tab active
+    utils.addClass(liDoubanReview, 'selected');
+
+    // call the anobii javascript switchTabContent
+    // switchTabContent will store the existing tab's HTML to a dummy DIV for restoring
+    // fake it that is not switched so it will only store the HTML and will not actually switch tab
+    utils.inject('switchTabContent("' + from + '", "' + from + '");');
+
+    // we do the HTML swapping here
+    document.getElementById('tab_content').innerHTML = '<div>' + document.getElementById(DOUBAN_REVIEW_DIV_ID).innerHTML + '</div>';
+
+    e.stopPropagation();
+    e.preventDefault();
+    return false;
+  }, false);
+  liDoubanReview.appendChild(a);
+  lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
+
+  // single event listener to capture all 'More' link
+  document.getElementById('tab_content').addEventListener('click', function(e) {
+    var target = e.target;
+    if (target.tagName && target.tagName.toUpperCase() === 'A') {
+      var fullinfourl = target.getAttribute(DOUBAN_REVIEW_FULLINFO_URL_ATTR);
+      if (fullinfourl) {
+        utils.crossOriginXMLHttpRequest({
+          method: 'GET',
+          url: fullinfourl,
+          onload: function(t) {
+            try {
+              var fullinfo = utils.parseJSON(t.responseText);
+              // remove the review HTML and extra <br/>
+              e.target.parentNode.innerHTML = utils.extract(fullinfo.html, null, '<div class="review-panel"').replace(/(\s*<br\/>\s*)+$/, '');
+            }
+            catch (err) {
+              e.target.innerHTML = LANG['ERROR'];
+            }
+          }
+        });
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
+      }
+    }
+  }, true);
+}
+
+function anobiiAddDoubanComments(isbn) {
+  if (!isbn) return;
+
+  utils.crossOriginXMLHttpRequest({
+    method: 'GET',
+    url: 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=xd&callback=callback',
+    onload: function(t) {
+      // use douban API JSONP to get the json, remove the call back function since we actually parse the JSON
+      t = t.responseText.replace(/^callback\(/, '').replace(/\)$/, '');
+      try {
+        var review = utils.parseJSON(t);
+        anobiiAddDoubanComments_onload(review);
+      }
+      catch (err) {
+        //
+      }
+    }
+  });
 }
 
 function extractISBN(s) {
@@ -971,7 +1205,7 @@ function addAnobiiLink(ele, showCover) {
         ele.removeChild(loading);
         if (t.status == 200) {
           try {
-            var obj = utils.jsonParse(t.responseText);
+            var obj = utils.parseJSON(t.responseText);
             if (obj && obj[0].totalRecord > 0) {
 
               obj = obj[0];
@@ -1004,7 +1238,7 @@ function addAnobiiRating(ele, bookId) {
     onload: function(t) {
       ele.removeChild(loading);
       if (t.status == 200) {
-        var obj = utils.jsonParse(t.responseText);
+        var obj = utils.parseJSON(t.responseText);
         if (obj && obj.length > 0) {
 
           obj = obj[0];
