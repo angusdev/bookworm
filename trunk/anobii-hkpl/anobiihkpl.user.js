@@ -124,7 +124,8 @@ var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 var SEARCH_ISBN_ATTR = 'bookworm-isbn';
 
 var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review';
-var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-doupan-review-fullinfo'; // the attribute name to store the fullinfo review json url
+var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-douban-review-fullinfo'; // the attribute name to store the fullinfo review json url
+var DOUBAN_FEEDBACK_URL_ATTR = 'bookworm-douban-feedback-url'; // the attribute name to store the URL of feedback div
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
@@ -214,6 +215,26 @@ function formatAnobiiDate(d) {
   }
   else {
     return '';
+  }
+}
+
+function parseDateYYYYMMDDHHMMSS(str) {
+  if (!str) return null;
+
+
+  var res = str.match(/(\d{4})\-(\d{1,2})\-(\d{1,2})(\s+(\d{1,2})\:(\d{1,2})(\:(\d{1,2}))?)?(\s|$)/m);
+  if (res) {
+    var y = res[1];
+    var m = res[2];
+    var d = res[3];
+    var h = res[5] || 0;
+    var mi = res[6] || 0;
+    var s = res[8] || 0;
+
+    return new Date(y, m, d, h, mi, s);
+  }
+  else {
+    return null;
   }
 }
 
@@ -932,7 +953,8 @@ function anobiiAddDoubanComments_onload(review) {
     DEBUG('Douban comment=' + commentCount);
     var commentCountHTML = '';
     if (commentCount) {
-      commentCountHTML = ' | <a href="' + reviewLinks['alternate'] + '" class="feedbacks_link" target="_blank">' + LANG['DOUBAN_COMMENT'].replace('$1', commentCount) + '</a>';
+      commentCountHTML = ' | <a href="' + reviewLinks['alternate'] + '" class="feedbacks_link" target="_blank">' +
+                         LANG['DOUBAN_COMMENT'].replace('$1', commentCount) + '</a>';
     }
 
     // follow Anobii comment HTML structure to simulate the UI
@@ -1005,12 +1027,23 @@ function anobiiAddDoubanComments_onload(review) {
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
 
+  anobiiAddDoubanComments_addClickEvent();
+}
+
+function anobiiAddDoubanComments_addClickEvent() {
   // single event listener to capture all 'More' link
   document.getElementById('tab_content').addEventListener('click', function(e) {
     var target = e.target;
     if (target.tagName && target.tagName.toUpperCase() === 'A') {
       var fullinfourl = target.getAttribute(DOUBAN_REVIEW_FULLINFO_URL_ATTR);
       if (fullinfourl) {
+        // Full review info, call the json api to display content
+
+        // the loading img will be remove by below innerHTML replace
+        var img = document.createElement('img');
+        img.src = LOADING_IMG;
+        target.parentNode.insertBefore(img, target.nextSibling);
+
         utils.crossOriginXMLHttpRequest({
           method: 'GET',
           url: fullinfourl,
@@ -1025,6 +1058,78 @@ function anobiiAddDoubanComments_onload(review) {
             }
           }
         });
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
+      }
+      else if (utils.hasClass(target, 'feedbacks_link')) {
+        // doupan comment link, get the HTML and parse the comments block
+
+        // check if the feedback already created, if yes, just toggle otherwise call ajax and create one
+        var feedbackres = xpath('//div[@' + DOUBAN_FEEDBACK_URL_ATTR + '="' + target.href + '"]');
+        if (feedbackres) {
+          feedbackres.style.display = feedbackres.style.display?'':'none';
+        }
+        else {
+          // load the feedback
+
+          var imgLoadingFeedback = document.createElement('img');
+          imgLoadingFeedback.src = LOADING_IMG;
+          target.parentNode.insertBefore(imgLoadingFeedback, target.nextSibling);
+
+          utils.crossOriginXMLHttpRequest({
+            method: 'GET',
+            url: target.href,
+            onload: function(t) {
+              imgLoadingFeedback.parentNode.removeChild(imgLoadingFeedback);
+              imgLoadingFeedback = null;
+
+              t = t.responseText;
+              var feedbackHTML = '';
+              var feedback = utils.extract(t, '<span class="comment-item"');
+
+              while (feedback) {
+                feedback = utils.extract(feedback, '', '<div class="align-right">');
+                // <h3 ...><span class="pl">[time]<a href="http://www.douban.com/people/[id]/">[name]</a></span></h3>
+                var feedbackSenderLine = utils.extract(feedback, '<h3', '</h3>');
+                feedbackSenderLine = feedbackSenderLine.replace(/^[^>]*>/, '').replace('class="pl"', '');
+                var feedbackTime = parseDateYYYYMMDDHHMMSS(feedbackSenderLine);
+                var feedbackSender = utils.extract(feedbackSenderLine, '<a ', '</a>');
+                if (feedbackSender) {
+                  feedbackSender = '<a ' + feedbackSender + '</a>';
+                }
+
+                feedback = utils.extract(feedback, '</h3>');
+
+                /*jshint multistr:true */
+                feedbackHTML +=
+                  '<ul class="feedback feedback_block"> \
+                    <li class="content">' +
+                      feedback +
+                  ' </li> \
+                    <li class="comment_details">' +
+                      feedbackSender + ' ' + LANG['DOUBAN_TIME'].replace('$1', formatAnobiiDate(feedbackTime)) +
+                  ' </li> \
+                  </ul>';
+                /*jshint multistr:false */
+
+                t = utils.extract(t, '<div class="align-right">');
+                feedback = utils.extract(t, '<span class="comment-item"');
+              }
+
+              var divFeedbacksWrap = document.createElement('div');
+              divFeedbacksWrap.className = 'feedbacks_wrap';
+              divFeedbacksWrap.setAttribute(DOUBAN_FEEDBACK_URL_ATTR, target.href);
+              divFeedbacksWrap.innerHTML = feedbackHTML;
+
+              var parentUl = parent(target, 'ul');
+              if (parentUl) {
+                parentUl.parentNode.insertBefore(divFeedbacksWrap, parentUl.nextSibling);
+              }
+            }
+          });
+        }
+
         e.stopPropagation();
         e.preventDefault();
         return false;

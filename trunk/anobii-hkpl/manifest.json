@@ -24,7 +24,8 @@
   ],
   "minimum_chrome_version": "20",
   "permissions": [
-    "http://webcat.hkpl.gov.hk/", "http://iapp2.anobii.com/", "http://www.books.com.tw/, http://api.douban.com/"
+    "http://webcat.hkpl.gov.hk/", "http://iapp2.anobii.com/", "http://www.books.com.tw/",
+    "http://www.douban.com/", "http://book.douban.com/", "http://api.douban.com/"
   ],
   "web_accessible_resources": ["loading.gif", "shadowAlpha.png"]
 }
