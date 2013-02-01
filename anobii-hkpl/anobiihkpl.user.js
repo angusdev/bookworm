@@ -89,6 +89,10 @@ LANG['DOUBAN_HELPFUL'] = '$1 個人認為這是很有幫助';
 LANG['DOUBAN_MORE'] = ' (繼續) ';
 LANG['DOUBAN_COMMENT'] = ' ($1 回應) ';
 LANG['DOUBAN_TIME'] = '在 $1 說';
+LANG['DOUBAN_COMMENT_PREV'] = '← 前一頁';
+LANG['DOUBAN_COMMENT_NEXT'] = '後一頁 →';
+//LANG['DOUBAN_COMMENT_PREV'] = '← Previous';
+//LANG['DOUBAN_COMMENT_NEXT'] = 'Next →';
 
 var SUGGEST_COUNTRY = [];
 SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
@@ -123,9 +127,11 @@ var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 
 var SEARCH_ISBN_ATTR = 'bookworm-isbn';
 
+var DOUBAN_REVIEW_TAB_REF = 'douban-review'; // the ref='xxx' of the tab li
 var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review';
 var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-douban-review-fullinfo'; // the attribute name to store the fullinfo review json url
 var DOUBAN_FEEDBACK_URL_ATTR = 'bookworm-douban-feedback-url'; // the attribute name to store the URL of feedback div
+var DOUBAN_REVIEW_API_URL_ATTR = 'bookworm-douban-review-api'; // the attribtue name to store the review json url
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
@@ -889,19 +895,19 @@ function parseDoubanLinks(obj) {
   return res;
 }
 
-function anobiiAddDoubanComments_onload(review) {
-  if (review.entry.length === 0) return;
-
-  // existing anobii review tab
-  var lireview = xpath('//ul[@id="product_content_tabs"]/li[@ref="reviews"]');
-  if (!lireview) return;
+function anobiiAddDoubanComments_onload(review, apiurl) {
+  if (review.entry.length === 0) return false;
 
   var totalResult = review['opensearch:totalResults']['$t'];
 
   // store the list of review in a dummy div for tab switching
-  var divDoubanReview = document.createElement('div');
-  divDoubanReview.style.display = 'none';
-  divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
+  var divDoubanReview = document.getElementById(DOUBAN_REVIEW_DIV_ID);
+  if (!divDoubanReview) {
+    divDoubanReview = document.createElement('div');
+    divDoubanReview.style.display = 'none';
+    divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
+    document.body.appendChild(divDoubanReview);
+  }
   divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + LANG['DOUBAN_HEADING'].replace('$1', totalResult) + ' </strong></h2>';
   DEBUG('Douban review entry=' + review.entry.length);
   for (var i=0 ; i<review.entry.length ; i++) {
@@ -990,44 +996,64 @@ function anobiiAddDoubanComments_onload(review) {
       /*jshint multistr:false */
     divDoubanReview.innerHTML += html;
   }
-  document.body.appendChild(divDoubanReview);
 
+  anobiiAddDoubanComments_pagination(review, divDoubanReview, apiurl);
+
+  return true;
+}
+
+function anobiiAddDoubanComments_createTab(review) {
   // create the Douban review tab
+
+  DEBUG('anobiiAddDoubanComments_createTab');
+
+  // existing anobii review tab
+  var lireview = xpath('//ul[@id="product_content_tabs"]/li[@ref="reviews"]');
+  if (!lireview) return false;
+
+  var totalResult = review['opensearch:totalResults']['$t'];
+
   var liDoubanReview = document.createElement('li');
-  liDoubanReview.setAttribute('ref', 'douban-review');
+  liDoubanReview.setAttribute('ref', DOUBAN_REVIEW_TAB_REF);
   var a = document.createElement('a');
   a.href = '#';
   a.innerHTML = LANG['DOUBAN_REVIEW'] + ' <small>(' + totalResult + ')</small>';
-  a.addEventListener('click', function(e) {
-    // turn off the active tab
-    var from;
-    var lis = document.getElementById('product_content_tabs').getElementsByTagName('li');
-    for (var i=0 ; i<lis.length ; i++) {
-      var thisli = lis[i];
-      if (utils.hasClass(thisli, 'selected')) {
-        utils.removeClass(thisli, 'selected');
-        from = thisli.getAttribute('ref');
-      }
-    }
-    // make douban review tab active
-    utils.addClass(liDoubanReview, 'selected');
-
-    // call the anobii javascript switchTabContent
-    // switchTabContent will store the existing tab's HTML to a dummy DIV for restoring
-    // fake it that is not switched so it will only store the HTML and will not actually switch tab
-    utils.inject('switchTabContent("' + from + '", "' + from + '");');
-
-    // we do the HTML swapping here
-    document.getElementById('tab_content').innerHTML = '<div>' + document.getElementById(DOUBAN_REVIEW_DIV_ID).innerHTML + '</div>';
-
-    e.stopPropagation();
-    e.preventDefault();
-    return false;
-  }, false);
+  a.addEventListener('click', anobiiAddDoubanComments_onClickTab, false);
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
+}
 
-  anobiiAddDoubanComments_addClickEvent();
+function anobiiAddDoubanComments_onClickTab(e) {
+  // turn off the active tab
+  var from;
+  var lis = document.getElementById('product_content_tabs').getElementsByTagName('li');
+  for (var i=0 ; i<lis.length ; i++) {
+    var thisli = lis[i];
+    if (utils.hasClass(thisli, 'selected')) {
+      utils.removeClass(thisli, 'selected');
+      from = thisli.getAttribute('ref');
+    }
+  }
+  // make douban review tab active
+  var liDoubanReview = xpath('//li[@ref="' + DOUBAN_REVIEW_TAB_REF + '"]');
+  if (liDoubanReview) {
+    utils.addClass(liDoubanReview, 'selected');
+  }
+
+  // call the anobii javascript switchTabContent
+  // switchTabContent will store the existing tab's HTML to a dummy DIV for restoring
+  // fake it that is not switched so it will only store the HTML and will not actually switch tab
+  utils.inject('switchTabContent("' + from + '", "' + from + '");');
+
+  // we do the HTML swapping here
+  document.getElementById('tab_content').innerHTML = '<div>' + document.getElementById(DOUBAN_REVIEW_DIV_ID).innerHTML + '</div>';
+
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  return false;
 }
 
 function anobiiAddDoubanComments_addClickEvent() {
@@ -1036,13 +1062,14 @@ function anobiiAddDoubanComments_addClickEvent() {
     var target = e.target;
     if (target.tagName && target.tagName.toUpperCase() === 'A') {
       var fullinfourl = target.getAttribute(DOUBAN_REVIEW_FULLINFO_URL_ATTR);
+      var reviewapiurl = target.getAttribute(DOUBAN_REVIEW_API_URL_ATTR);
       if (fullinfourl) {
         // Full review info, call the json api to display content
 
         // the loading img will be remove by below innerHTML replace
-        var img = document.createElement('img');
-        img.src = LOADING_IMG;
-        target.parentNode.insertBefore(img, target.nextSibling);
+        var imgFullInfo = document.createElement('img');
+        imgFullInfo.src = LOADING_IMG;
+        target.parentNode.insertBefore(imgFullInfo, target.nextSibling);
 
         utils.crossOriginXMLHttpRequest({
           method: 'GET',
@@ -1052,6 +1079,37 @@ function anobiiAddDoubanComments_addClickEvent() {
               var fullinfo = utils.parseJSON(t.responseText);
               // remove the review HTML and extra <br/>
               e.target.parentNode.innerHTML = utils.extract(fullinfo.html, null, '<div class="review-panel"').replace(/(\s*<br\/>\s*)+$/, '');
+            }
+            catch (err) {
+              e.target.innerHTML = LANG['ERROR'];
+            }
+          }
+        });
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
+      }
+      else if (reviewapiurl) {
+        // Paging
+
+        // the loading img will be remove by below innerHTML replace
+        var imgPaging = document.createElement('img');
+        imgPaging.src = LOADING_IMG;
+        target.parentNode.insertBefore(imgPaging, target.nextSibling);
+
+        utils.crossOriginXMLHttpRequest({
+          method: 'GET',
+          url: reviewapiurl,
+          onload: function(t) {
+            try {
+              var review = utils.parseJSON(t.responseText);
+              if (review) {
+                anobiiAddDoubanComments_onload(review, reviewapiurl);
+                anobiiAddDoubanComments_onClickTab(); // simulate click the tab to reload the data
+                var top = utils.calcOffsetTop(document.getElementById('product_content_tabs'));
+                var left = window.pageXOffset || document.documentElement.scrollLeft;
+                window.scrollTo(left, top - 10);
+              }
             }
             catch (err) {
               e.target.innerHTML = LANG['ERROR'];
@@ -1138,18 +1196,62 @@ function anobiiAddDoubanComments_addClickEvent() {
   }, true);
 }
 
+function anobiiAddDoubanComments_pagination(review, container, apiurl) {
+  var totalResult = review['opensearch:totalResults']['$t'];
+  var itemsPerPage = parseDoubanValue(review, 'opensearch:itemsPerPage', '$t', 0);
+  var startIndex = parseDoubanValue(review, 'opensearch:startIndex', '$t', 0);
+  DEBUG('anobiiAddDoubanComments_pagination totalResult=' + totalResult + ', itemsPerPage=' + itemsPerPage + ', startIndex=' + startIndex);
+  var html = '';
+
+  function makeAPIURL(page) {
+    return apiurl.replace(/&start\-index=\d*/, '') + '&start-index=' + ((page-1) * itemsPerPage + 1);
+  }
+
+  if (totalResult > itemsPerPage) {
+    var currPage = Math.ceil(startIndex / itemsPerPage);
+    var totalPage = Math.ceil(totalResult / itemsPerPage);
+    DEBUG('anobiiAddDoubanComments_pagination currPage=' + currPage);
+    for (var i=1 ; i<=totalPage ; i++) {
+      var pageHTML = '';
+      if (i === currPage) {
+        pageHTML = '<span class="current">' + i + '</span>';
+      }
+      else {
+        pageHTML = '<a href="#" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(i) + '">' + i + '</a>';
+      }
+      html += pageHTML;
+    }
+
+    // totalPage must > 1
+    if (currPage > 1) {
+      html = '<a href="#" class="prev" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage - 1) + '">' + LANG['DOUBAN_COMMENT_PREV'] + '</a>' + html;
+    }
+    if (currPage != totalPage) {
+      html += '<a href="#" class="next" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage + 1) + '">' + LANG['DOUBAN_COMMENT_NEXT'] + '</a>';
+    }
+    html = '<p class="pagination_wrap">' + html + '</p>';
+
+    var div = document.createElement('div');
+    div.innerHTML = html;
+
+    container.appendChild(div);
+  }
+}
+
 function anobiiAddDoubanComments(isbn) {
   if (!isbn) return;
 
+  var apiurl = 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=json';
   utils.crossOriginXMLHttpRequest({
     method: 'GET',
-    url: 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=xd&callback=callback',
+    url: apiurl,
     onload: function(t) {
-      // use douban API JSONP to get the json, remove the call back function since we actually parse the JSON
-      t = t.responseText.replace(/^callback\(/, '').replace(/\)$/, '');
       try {
-        var review = utils.parseJSON(t);
-        anobiiAddDoubanComments_onload(review);
+        var review = utils.parseJSON(t.responseText);
+        if (anobiiAddDoubanComments_onload(review, apiurl)) {
+          anobiiAddDoubanComments_createTab(review);
+          anobiiAddDoubanComments_addClickEvent();
+        }
       }
       catch (err) {
         //
