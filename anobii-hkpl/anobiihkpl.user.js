@@ -896,8 +896,6 @@ function parseDoubanLinks(obj) {
 }
 
 function anobiiAddDoubanComments_onload(review, apiurl) {
-  if (review.entry.length === 0) return false;
-
   var totalResult = review['opensearch:totalResults']['$t'];
 
   // store the list of review in a dummy div for tab switching
@@ -1011,13 +1009,16 @@ function anobiiAddDoubanComments_createTab(review) {
   var lireview = xpath('//ul[@id="product_content_tabs"]/li[@ref="reviews"]');
   if (!lireview) return false;
 
-  var totalResult = review['opensearch:totalResults']['$t'];
+  var totalResult = parseInt(review['opensearch:totalResults']['$t'], 10);
 
   var liDoubanReview = document.createElement('li');
   liDoubanReview.setAttribute('ref', DOUBAN_REVIEW_TAB_REF);
+  if (!totalResult) {
+    liDoubanReview.className = 'disabled';
+  }
   var a = document.createElement('a');
   a.href = '#';
-  a.innerHTML = LANG['DOUBAN_REVIEW'] + ' <small>(' + totalResult + ')</small>';
+  a.innerHTML = LANG['DOUBAN_REVIEW'] + (totalResult?(' <small>(' + totalResult + ')</small>'):'');
   a.addEventListener('click', anobiiAddDoubanComments_onClickTab, false);
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
