@@ -140,7 +140,10 @@ var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://webcat.hkpl.gov.hk';
 var g_pageType = '';  // indicates which page is in, used by different function to show different presentations
 var g_loading = false;
-var g_options = { translatetc: true };
+var g_options = {
+  anobiiexpandtag: true,
+  translatetc: true
+};
 
 var PAGE_TYPE_ANOBII = 1;
 var PAGE_TYPE_HKPL_BOOK = 2;
@@ -1644,7 +1647,7 @@ if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
 
   /*jshint multistr:true, newcap:false */
-  if (typeof(GM_addStyle) != 'undefined') {
+  if (typeof(GM_addStyle) !== 'undefined') {
     GM_addStyle('.gallery_view .shelf dl { padding-bottom:0px !important; } \
                  a.bookworm-search-book-link:link { color:#6a0; } \
                  .gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0px; } \
@@ -1654,9 +1657,15 @@ if (/anobii\.com/.test(document.location.href)) {
                  .bookworm-search-addinfo { clear:both; float:right; } \
                  .title a.bookworm-search-addinfo-books-tw:link, .list_view .title:hover a.bookworm-search-addinfo-books-tw, #product_info .info a.bookworm-search-addinfo-books-tw { color:#6a0; } \
                  .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; } \
-                 .gallery_view .bookworm-search-addinfo-bookname: { width:100%; }');
+                 .gallery_view .bookworm-search-addinfo-bookname: { width:100%; } \
+                 .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; }');
   }
   /*jshint multistr:false, newcap:true */
+
+  // expand tag list in edit shelf dialog
+  if (g_options.anobiiexpandtag) {
+    document.body.className += ' bookworm-anobii-expand-tag';
+  }
 
   document.body.addEventListener('click', function(e) {
     var res = utils.getElementsByClassName(MULTI_RESULT_LAYER_CLASS);
