@@ -19,7 +19,7 @@
                   "https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*",
                   "http://www.books.com.tw/exep/prod/booksfile.php?item=*"],
       "css": ["anobiihkpl.css"],
-      "js": ["ellab-utils.js", "anobiihkpl.user.js"]
+      "js": ["ellab-utils.js", "tongwen.js", "anobiihkpl.user.js"]
     }
   ],
   "minimum_chrome_version": "20",
