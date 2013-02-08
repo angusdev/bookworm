@@ -51,7 +51,7 @@ Version history:
 */
 
 /*jshint devel:true */
-/*global chrome, console, window, org, GM_addStyle, unsafeWindow */
+/*global chrome, console, window, org, GM_addStyle, unsafeWindow, toTrad */
 (function(){
 'use strict';
 
@@ -140,6 +140,7 @@ var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://webcat.hkpl.gov.hk';
 var g_pageType = '';  // indicates which page is in, used by different function to show different presentations
 var g_loading = false;
+var g_options = { translatetc: true };
 
 var PAGE_TYPE_ANOBII = 1;
 var PAGE_TYPE_HKPL_BOOK = 2;
@@ -1077,7 +1078,8 @@ function anobiiAddDoubanComments_addClickEvent() {
           url: fullinfourl,
           onload: function(t) {
             try {
-              var fullinfo = utils.parseJSON(t.responseText);
+              var fullinfoJSON = g_options.translatetc?toTrad(t.responseText):t.responseText;
+              var fullinfo = utils.parseJSON(fullinfoJSON);
               // remove the review HTML and extra <br/>
               e.target.parentNode.innerHTML = utils.extract(fullinfo.html, null, '<div class="review-panel"').replace(/(\s*<br\/>\s*)+$/, '');
             }
@@ -1103,7 +1105,8 @@ function anobiiAddDoubanComments_addClickEvent() {
           url: reviewapiurl,
           onload: function(t) {
             try {
-              var review = utils.parseJSON(t.responseText);
+              var reviewJSON = g_options.translatetc?toTrad(t.responseText):t.responseText;
+              var review = utils.parseJSON(reviewJSON);
               if (review) {
                 anobiiAddDoubanComments_onload(review, reviewapiurl);
                 anobiiAddDoubanComments_onClickTab(); // simulate click the tab to reload the data
@@ -1149,6 +1152,7 @@ function anobiiAddDoubanComments_addClickEvent() {
 
               while (feedback) {
                 feedback = utils.extract(feedback, '', '<div class="align-right">');
+                feedback = g_options.translatetc?toTrad(feedback):feedback;
                 // <h3 ...><span class="pl">[time]<a href="http://www.douban.com/people/[id]/">[name]</a></span></h3>
                 var feedbackSenderLine = utils.extract(feedback, '<h3', '</h3>');
                 feedbackSenderLine = feedbackSenderLine.replace(/^[^>]*>/, '').replace('class="pl"', '');
@@ -1248,7 +1252,8 @@ function anobiiAddDoubanComments(isbn) {
     url: apiurl,
     onload: function(t) {
       try {
-        var review = utils.parseJSON(t.responseText);
+        var reviewJSON = g_options.translatetc?toTrad(t.responseText):t.responseText;
+        var review = utils.parseJSON(reviewJSON);
         if (anobiiAddDoubanComments_onload(review, apiurl)) {
           anobiiAddDoubanComments_createTab(review);
           anobiiAddDoubanComments_addClickEvent();
