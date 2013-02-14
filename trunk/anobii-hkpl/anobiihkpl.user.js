@@ -89,6 +89,7 @@ LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http:
 LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
 LANG['ANOBII_RATING'] = ['Anobii Rating', 'aNobii 評級', 'aNobii 评级'];
+LANG['ANOBII_RATING_DOUBAN_PEOPLE_COUNT'] = ['$1/$2', '$1 人評價 $2 人擁有', '$1 人评价 $2 人拥有'];
 LANG['DOUBAN_REVIEW'] = ['Douban Review', '豆瓣評論', '豆瓣评论'];
 LANG['DOUBAN_HEADING'] = ['$1 Reviews', '$1 則評論', '$1 则评论'];
 LANG['DOUBAN_HELPFUL'] = ['$1 people find this helpful', '$1 個人認為這是很有幫助', '$1 个人认为这是很有帮助'];
@@ -98,7 +99,11 @@ LANG['DOUBAN_TIME'] = [' said on $1', '在 $1 說', '在 $1 说'];
 LANG['DOUBAN_COMMENT_PREV'] = ['← Previous', '← 前一頁', '← 前一页'];
 LANG['DOUBAN_COMMENT_NEXT'] = ['Next →', '後一頁 →', '后一页 →'];
 
-function lang(k) {
+// k - key
+// lng - lang, if null use g_lang
+function lang(k, lng) {
+  lng = lng || g_lang;
+
   var v = LANG[k];
   if (typeof(v) === 'undefined') {
     return k;
@@ -108,7 +113,7 @@ function lang(k) {
       return v;
     }
     else {
-      return v[g_lang];
+      return v[lng];
     }
   }
 }
@@ -167,6 +172,7 @@ var PAGE_TYPE_ANOBII = 1;
 var PAGE_TYPE_HKPL_BOOK = 2;
 var PAGE_TYPE_HKPL_SUGGESTION = 3;
 var PAGE_TYPE_BOOKS_TW_BOOK = 4;
+var PAGE_TYPE_DOUBAN_BOOK = 5;
 
 var DISPLAY_BOOK = 0;
 var DISPLAY_SIMPLE = 1;
@@ -1432,12 +1438,13 @@ function addAnobiiLink(ele, showCover) {
 
               obj = obj[0];
               var bookId = obj.resultFinal[0].encryptItemId;
-              ele.innerHTML = '<a href="http://www.anobii.com/books/' + obj.resultFinal[0].encryptItemId + '" target="_blank">' +
+              var anobiiBookURL = 'http://www.anobii.com/books/' + bookId;
+              ele.innerHTML = '<a href="' + anobiiBookURL + '" target="_blank">' +
                               (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
                               ele.textContent.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
                               (showCover?'margin-top:5px;':'') +
                               '"/>';
-              addAnobiiRating(ele, bookId);
+              addAnobiiRating(ele, bookId, anobiiBookURL);
             }
           }
           catch (err) {
@@ -1449,7 +1456,7 @@ function addAnobiiLink(ele, showCover) {
   }
 }
 
-function addAnobiiRating(ele, bookId) {
+function addAnobiiRating(ele, bookId, anobiiBookURL) {
   var loading = document.createElement('img');
   loading.src = LOADING_IMG;
   loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
@@ -1460,44 +1467,62 @@ function addAnobiiRating(ele, bookId) {
     onload: function(t) {
       ele.removeChild(loading);
       if (t.status == 200) {
-        var obj = utils.parseJSON(t.responseText);
+        var obj = utils.parseJSON(t.responseText);console.log(obj);
         if (obj && obj.length > 0) {
-
           obj = obj[0];
           if (obj.totalOwner > 0) {
-            var rating = '';
+            var rateInt = parseInt(obj.averageRate, 10);
+            var ratePtFive = (obj.averageRate == rateInt)?0:1;
+
             if (obj.averageRate > 0) {
-              var rateInt = parseInt(obj.averageRate, 10);
-              var ratePtFive = (obj.averageRate == rateInt)?0:1;
-              // filled star
-              for (var i=0; i<rateInt; i++) {
-                rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif" width="10" height="10"/>';
+              if (g_pageType == PAGE_TYPE_DOUBAN_BOOK)  {
+                var interest_sectl = document.getElementById('interest_sectl');
+                if (interest_sectl) {
+                  var divDoubanRating = document.createElement('div');
+                  divDoubanRating.className = 'rating_wrap clearbox';
+                  divDoubanRating.innerHTML = '<p class="pl">' + lang('ANOBII_RATING') + '</p>' +
+                                              '<p class="rating_self clearfix"><span class="ll bigstar' + (parseFloat(obj.averageRate) * 10) + '"></span>' +
+                                              '<strong class="ll rating_num">' + rateInt + '.' + (ratePtFive * 5) + '</strong>' +
+                                              '<p class="rating_self font_normal">(<a href="' + anobiiBookURL + '" target="_blank"><span>' +
+                                              lang('ANOBII_RATING_DOUBAN_PEOPLE_COUNT').replace('$1', obj.totalRatePerson).replace('$2', obj.totalOwner) +
+                                              '</span></a>)</p>';
+                  interest_sectl.appendChild(divDoubanRating);
+                }
               }
-              // half filled star
-              if (ratePtFive) {
-                rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_05.gif" width="10" height="10"/>';
-              }
-              // unfilled star
-              for (var j=rateInt+ratePtFive; j<5; j++) {
-                rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif" width="10" height="10"/>';
-              }
-            }
-            rating += ' (' + obj.totalRatePerson + '/' + obj.totalOwner + ')';
-            if (g_pageType == PAGE_TYPE_HKPL_BOOK) {
-              var parentTr = parent(ele, 'tr');
-              if (parentTr) {
-                var tr = document.createElement('tr');
-                tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + lang('ANOBII_RATING') + '</strong>' +
-                               '<td valign="top">' + rating + '</td></tr>';
-                parentTr.parentNode.insertBefore(tr, parentTr.nextSibling);
-              }
-            }
-            else if (g_pageType == PAGE_TYPE_BOOKS_TW_BOOK)  {
-              var parentLi = parent(ele, 'li');
-              if (parentLi) {
-                var li = document.createElement('li');
-                li.innerHTML = lang('ANOBII_RATING') + ':<span>' + rating +  '</span>';
-                parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
+              else {
+                var rating = '';
+
+                // filled star
+                for (var i=0; i<rateInt; i++) {
+                  rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif" width="10" height="10"/>';
+                }
+                // half filled star
+                if (ratePtFive) {
+                  rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_05.gif" width="10" height="10"/>';
+                }
+                // unfilled star
+                for (var j=rateInt+ratePtFive; j<5; j++) {
+                  rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif" width="10" height="10"/>';
+                }
+
+                rating += ' (' + obj.totalRatePerson + '/' + obj.totalOwner + ')';
+                if (g_pageType == PAGE_TYPE_HKPL_BOOK) {
+                  var parentTr = parent(ele, 'tr');
+                  if (parentTr) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + lang('ANOBII_RATING') + '</strong>' +
+                                   '<td valign="top">' + rating + '</td></tr>';
+                    parentTr.parentNode.insertBefore(tr, parentTr.nextSibling);
+                  }
+                }
+                else if (g_pageType == PAGE_TYPE_BOOKS_TW_BOOK)  {
+                  var parentLi = parent(ele, 'li');
+                  if (parentLi) {
+                    var li = document.createElement('li');
+                    li.innerHTML = lang('ANOBII_RATING') + ':<span>' + rating +  '</span>';
+                    parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
+                  }
+                }
               }
             }
           }
@@ -1637,6 +1662,21 @@ function booksTWAddHKPLSuggestionLink() {
   }
 }
 
+function doubanAddAnobiiLink() {
+  var res = xpath("//div[@id='info']//span[text()='ISBN:']");
+  if (res) {
+    res = res.nextSibling;
+    if (res) {
+      // use span to replace the textNode
+      var span = document.createElement('span');
+      span.innerHTML = res.textContent;
+      res.parentNode.insertBefore(span, res);
+      res.parentNode.removeChild(res);
+      addAnobiiLink(span, false);
+    }
+  }
+}
+
 // main
 
 // temp solution for Issue #28 Duplicated search HKPL link in Chrome 12
@@ -1709,6 +1749,12 @@ else if (/booksfile\.php/.test(document.location.href)) {
 
   booksTWAddHKPLSuggestionLink();
   booksTWAddAnobiiLink();
+}
+else if (/\/\/book\.douban\.com\/subject\/\d+/.test(document.location.href)) {
+  g_pageType = PAGE_TYPE_DOUBAN_BOOK;
+  g_lang = LANG_SC;
+
+  doubanAddAnobiiLink();
 }
 
 })();

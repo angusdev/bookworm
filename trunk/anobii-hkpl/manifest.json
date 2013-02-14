@@ -17,7 +17,8 @@
                   "http://webcat.hkpl.gov.hk/*",
                   "https://webcat.hkpl.gov.hk/*",
                   "https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*",
-                  "http://www.books.com.tw/exep/prod/booksfile.php?item=*"],
+                  "http://www.books.com.tw/exep/prod/booksfile.php?item=*",
+                  "http://book.douban.com/subject/*"],
       "css": ["anobiihkpl.css"],
       "js": ["ellab-utils.js", "tongwen.js", "anobiihkpl.user.js"]
     }
