@@ -5,7 +5,6 @@
 // @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-5/ellab-utils.js
 // @resource       loading http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-3/loading.gif
-// @resource       shadowAlpha http://ellab-gm.googlecode.com/svn/tags/anobii-hkpl-3/shadowAlpha.png
 // @include        http://www.anobii.com/books/*
 // @include        http://www.anobii.com/wishlist*
 // @include        http://www.anobii.com/*/books*
@@ -154,7 +153,6 @@ var DOUBAN_FEEDBACK_URL_ATTR = 'bookworm-douban-feedback-url'; // the attribute 
 var DOUBAN_REVIEW_API_URL_ATTR = 'bookworm-douban-review-api'; // the attribtue name to store the review json url
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
-var SHADOWALPHA_IMG = utils.getResourceURL('shadowAlpha', 'shadowAlpha.png');
 
 var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
 var g_domainPrefix = 'http://webcat.hkpl.gov.hk';
@@ -508,32 +506,20 @@ function onClickSearch(searchLink) {
   }
 }
 
-function moveMultipleResultLayer(divShadow, searchLink) {
+function moveMultipleResultLayer(divContent, searchLink) {
   var minLeftMargin = 10;
   var minWidth = 300;
   var divWidth = 500;
-  var divBorder = 0;
-  var divPadding = 0;
-  var shadowWidth = 6;
   var top = utils.calcOffsetTop(searchLink);
-  top += searchLink.offsetHeight + shadowWidth + 6; // hardcode a vertical gap of 6px
+  top += searchLink.offsetHeight + 6; // hardcode a vertical gap of 6px
   var left = utils.calcOffsetLeft(searchLink);
-  left = left + shadowWidth + searchLink.offsetWidth - divWidth - divBorder * 2 - divPadding * 2;
+  left = left + searchLink.offsetWidth - divWidth;
   if (left < minLeftMargin) {
     divWidth = Math.max(minWidth, divWidth - (minLeftMargin - left));
     left = minLeftMargin;
   }
 
-  divShadow.style.left = left + 'px';
-  divShadow.style.top = top + 'px';
-
-  var divContent = divShadow.getElementsByTagName('DIV')[0];
-  if (divContent) {
-      divContent.setAttribute('style',
-                              'width:' + divWidth + 'px; padding:' + divPadding + 'px; background-color:white;' +
-                              'margin:-' + shadowWidth + 'px ' + shadowWidth + 'px ' + shadowWidth + 'px -' + shadowWidth + 'px;' +
-                              'border:' + divBorder + 'px solid grey;');
-  }
+  divContent.setAttribute('style', 'left: ' + left + 'px; top: ' + top + 'px; width:' + divWidth + 'px;');
 }
 
 function buildMultipleResult(searchLink, result) {
@@ -633,18 +619,14 @@ function buildMultipleResult(searchLink, result) {
     // for some cases searchLink is not the original search link of that book (e.g. searchLink is 'Next')
     var originalSearchLink = document.getElementById(SEARCH_LINK_ID_PREFIX + searchId);
     // remove previous div if exists (e.g. searchLink is 'Next')
-    var divShadow = document.getElementById(MULTI_RESULT_LAYER_ID_PREFIX + searchId);
-    if (divShadow) {
-      divShadow.parentNode.removeChild(divShadow);
-      divShadow = null;
+    var divContent = document.getElementById(MULTI_RESULT_LAYER_ID_PREFIX + searchId);
+    if (divContent) {
+      divContent.parentNode.removeChild(divContent);
+      divContent = null;
     }
-    divShadow = document.createElement('div');
-    divShadow.setAttribute('id', MULTI_RESULT_LAYER_ID_PREFIX + searchId);
-    divShadow.className = MULTI_RESULT_LAYER_CLASS;
-    divShadow.setAttribute('style',
-                           'position:absolute; padding:0px; background:url(' + SHADOWALPHA_IMG + ') no-repeat right bottom;');
-
-    var divContent = document.createElement('div');
+    divContent = document.createElement('div');
+    divContent.setAttribute('id', MULTI_RESULT_LAYER_ID_PREFIX + searchId);
+    divContent.className = MULTI_RESULT_LAYER_CLASS;
     divContent.innerHTML = html;
 
     var searchRes = utils.getElementsByClassName(MULTI_RESULT_SEARCH_INLINE_CLASS, divContent);
@@ -670,9 +652,8 @@ function buildMultipleResult(searchLink, result) {
       }, false);
     }
 
-    divShadow.appendChild(divContent);
-    moveMultipleResultLayer(divShadow, originalSearchLink);
-    document.body.appendChild(divShadow);
+    moveMultipleResultLayer(divContent, originalSearchLink);
+    document.body.appendChild(divContent);
   }
 }
 
@@ -1694,7 +1675,8 @@ if (/anobii\.com/.test(document.location.href)) {
                    { color:#6a0 !important; } \
                  .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; } \
                  .gallery_view .bookworm-search-addinfo-bookname: { width:100%; } \
-                 .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; }');
+                 .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; } \
+                 .bookworm-multiple-layer { position:absolute; background-color:white; box-shadow: 6px 6px 10px #aaa; }');
   }
   /*jshint multistr:false, newcap:true */
 

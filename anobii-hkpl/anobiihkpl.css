@@ -10,3 +10,4 @@
 .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; }
 .gallery_view .bookworm-search-addinfo-bookname: { width:100%; }
 .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; }
+.bookworm-multiple-layer { position:absolute; background-color:white; box-shadow: 6px 6px 10px #aaa; }
