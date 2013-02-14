@@ -1,15 +1,12 @@
+.bookworm-search-addinfo { clear:both; float:right; }
 .gallery_view .shelf dl { padding-bottom:0 !important; }
-a.bookworm-search-book-link:link { color:#6a0; }
-.gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0; }
+.gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0; float:none; }
 .bookworm-supersearch-link.subtitle a:link { color:black; }
 .bookworm-supersearch-link.subtitle a:hover { color:#039; }
 .simple_list_view .shelf .title .bookworm-supersearch-link.subtitle a { font-weight:normal; }
-.bookworm-search-addinfo { clear:both; float:right; }
-.title a.bookworm-search-addinfo-books-tw:link,
-.list_view .title:hover a.bookworm-search-addinfo-books-tw,
-.item_list .list_item_hover a.bookworm-search-addinfo-books-tw,
-#product_info .info a.bookworm-search-addinfo-books-tw { color:#6a0; }
+.bookworm-search-addinfo-books-tw, .bookworm-search-addinfo-books-tw:hover,
+.bookworm-search-book-link, .bookworm-search-book-link:hover
+  { color:#6a0 !important; }
 .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; }
 .gallery_view .bookworm-search-addinfo-bookname: { width:100%; }
-
 .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; }

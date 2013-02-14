@@ -804,9 +804,7 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
     // not found
     searchLink.innerHTML = lang('NOTFOUND');
 
-    // not found and not in gallery display mode, show link to search books.com.tw
-    // it is ugly to show the link in shelf display mode
-    if (bookName && g_displayMode != DISPLAY_GALLERY) {
+    if (bookName) {
       var a = document.createElement('a');
       a.innerHTML = lang('SEARCH_BOOKS_TW');
       a.href = '#';
@@ -860,6 +858,7 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
         div.innerHTML = parsedSingle.bookName;
         div.title = utils.decodeHTML(parsedSingle.bookName);
         div.className = searchLink.className + ' ' + SEARCH_ADDINFO_CLASS + ' ' + SEARCH_ADDINFO_BOOKNAME_CLASS;
+        utils.removeClass(div, SEARCH_LINK_CLASS);  // this is not a search link
         searchLink.parentNode.appendChild(div);
       }
 
@@ -1684,14 +1683,15 @@ if (/anobii\.com/.test(document.location.href)) {
 
   /*jshint multistr:true, newcap:false */
   if (typeof(GM_addStyle) !== 'undefined') {
-    GM_addStyle('.gallery_view .shelf dl { padding-bottom:0px !important; } \
-                 a.bookworm-search-book-link:link { color:#6a0; } \
-                 .gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0px; } \
+    GM_addStyle('.bookworm-search-addinfo { clear:both; float:right; } \
+                 .gallery_view .shelf dl { padding-bottom:0 !important; } \
+                 .gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0; float:none; } \
                  .bookworm-supersearch-link.subtitle a:link { color:black; } \
                  .bookworm-supersearch-link.subtitle a:hover { color:#039; } \
                  .simple_list_view .shelf .title .bookworm-supersearch-link.subtitle a { font-weight:normal; } \
-                 .bookworm-search-addinfo { clear:both; float:right; } \
-                 .title a.bookworm-search-addinfo-books-tw:link, .list_view .title:hover a.bookworm-search-addinfo-books-tw, #product_info .info a.bookworm-search-addinfo-books-tw { color:#6a0; } \
+                 .bookworm-search-addinfo-books-tw, .bookworm-search-addinfo-books-tw:hover, \
+                 .bookworm-search-book-link, .bookworm-search-book-link:hover \
+                   { color:#6a0 !important; } \
                  .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; } \
                  .gallery_view .bookworm-search-addinfo-bookname: { width:100%; } \
                  .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; }');
