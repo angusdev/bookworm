@@ -60,39 +60,59 @@ var extract = org.ellab.utils.extract;
 var xpath = org.ellab.utils.xpath;
 var xpathl = org.ellab.utils.xpathl;
 
+var ANOBII_LANG_EN = 1;
+var ANOBII_LANG_TC = 2;
+var ANOBII_LANG_SC = 3;
+var LANG_EN = 0;
+var LANG_TC = 1;
+var LANG_SC = 2;
+var g_lang = LANG_TC;
+
 var LANG = [];
-LANG['SEARCH'] = '搜尋';
-LANG['SEARCH_HKPL'] = '搜尋公共圖書館';
-LANG['SEARCH_PREV'] = '上一頁';
-LANG['SEARCH_NEXT'] = '下一頁';
-LANG['NOTFOUND'] = '沒有紀錄';
-LANG['FOUND1'] = '共 ';
-LANG['FOUND2'] = ' 本，';
-LANG['FOUND3'] = ' 本架上';
-LANG['FOUND4'] = ' 個預約';
-LANG['MULTIPLE'] = '多於一個結果';
-LANG['PROCESSING'] = '正在處理/準備註銷';
-LANG['SEARCH_BOOKS_TW'] = '搜尋博客來';
-LANG['ERROR'] = '錯誤';
-LANG['UNKNOWN'] = '錯誤';
+
+LANG['SEARCH'] = ['Search', '搜尋', '搜寻'];
+LANG['SEARCH_HKPL'] = ['Search HKPL', '搜尋公共圖書館', '搜寻公共图书馆'];
+LANG['SEARCH_PREV'] = ['Previous', '上一頁', '上一页'];
+LANG['SEARCH_NEXT'] = ['Next', '下一頁', '下一页'];
+LANG['NOTFOUND'] = ['Not found', '沒有紀錄', '没有纪录'];
+LANG['HKPL_FOUND_ONSHELF'] = ['$1 on shelf', '$1 本架上', '$1 本架上'];
+LANG['HKPL_FOUND_RESERVE'] = [', $1 reservation', ' $1 個預約', ' $1 个预约'];
+LANG['MULTIPLE'] = ['Multiple Result', '多於一個結果', '多于一个结果'];
+LANG['PROCESSING'] = ['Processing', '正在處理/準備註銷', '正在处理/准备注销'];
+LANG['SEARCH_BOOKS_TW'] = ['Search 博客來', '搜尋博客來', '搜寻博客来'];
+LANG['ERROR'] = ['Error', '錯誤', '错误'];
+LANG['UNKNOWN'] = ['Error', '錯誤', '错误'];
 
 LANG['GET_SUGGESTION'] = '填寫內容';
-LANG['LOADING'] = '載入中...';
+LANG['LOADING'] = ['Loading...', '載入中...', '载入中...'];
 LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
 
 LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
-LANG['ANOBII_RATING'] = 'aNobii 評級';
-LANG['DOUBAN_REVIEW'] = '豆瓣評論';
-LANG['DOUBAN_HEADING'] = '$1 則評論';
-LANG['DOUBAN_HELPFUL'] = '$1 個人認為這是很有幫助';
-LANG['DOUBAN_MORE'] = ' (繼續) ';
-LANG['DOUBAN_COMMENT'] = ' ($1 回應) ';
-LANG['DOUBAN_TIME'] = '在 $1 說';
-LANG['DOUBAN_COMMENT_PREV'] = '← 前一頁';
-LANG['DOUBAN_COMMENT_NEXT'] = '後一頁 →';
-//LANG['DOUBAN_COMMENT_PREV'] = '← Previous';
-//LANG['DOUBAN_COMMENT_NEXT'] = 'Next →';
+LANG['ANOBII_RATING'] = ['Anobii Rating', 'aNobii 評級', 'aNobii 评级'];
+LANG['DOUBAN_REVIEW'] = ['Douban Review', '豆瓣評論', '豆瓣评论'];
+LANG['DOUBAN_HEADING'] = ['$1 Reviews', '$1 則評論', '$1 则评论'];
+LANG['DOUBAN_HELPFUL'] = ['$1 people find this helpful', '$1 個人認為這是很有幫助', '$1 个人认为这是很有帮助'];
+LANG['DOUBAN_MORE'] = [' ... (continue)', ' ...(繼續) ', ' ...(继续) '];
+LANG['DOUBAN_COMMENT'] = [' ($1 feedbacks) ', ' ($1 個回應) ', ' ($1 个回应) '];
+LANG['DOUBAN_TIME'] = [' said on $1', '在 $1 說', '在 $1 说'];
+LANG['DOUBAN_COMMENT_PREV'] = ['← Previous', '← 前一頁', '← 前一页'];
+LANG['DOUBAN_COMMENT_NEXT'] = ['Next →', '後一頁 →', '后一页 →'];
+
+function lang(k) {
+  var v = LANG[k];
+  if (typeof(v) === 'undefined') {
+    return k;
+  }
+  else {
+    if (typeof(v) === 'string') {
+      return v;
+    }
+    else {
+      return v[g_lang];
+    }
+  }
+}
 
 var SUGGEST_COUNTRY = [];
 SUGGEST_COUNTRY['TC'] = ['台灣', '香港', '中國'];
@@ -277,6 +297,8 @@ function processBookList() {
     }
   }
 
+  DEBUG('g_displayMode=' + g_displayMode);
+
   for (var i=0; i<res.snapshotLength; i++) {
     var ele = res.snapshotItem(i);
     var matched = ele.innerHTML.match(/^\s*([^<]+)/);
@@ -304,7 +326,7 @@ function processBookList() {
       }
 
       var search = document.createElement('a');
-      search.innerHTML = LANG['SEARCH_HKPL'];
+      search.innerHTML = lang('SEARCH_HKPL');
       search.href = '#';
       search.className = SEARCH_LINK_CLASS;
       search.setAttribute('name', bookName);
@@ -408,7 +430,7 @@ function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
     if (superSearch) {
       var searchPhrase = superSearchWords.slice(0, k+1).join('');
       superSearch.setAttribute('name', searchPhrase);
-      superSearch.setAttribute('title', LANG['SEARCH'] +' ' + searchPhrase);
+      superSearch.setAttribute('title', lang('SEARCH') +' ' + searchPhrase);
       attachSearchLinkListener(superSearch);
     }
   }
@@ -523,12 +545,12 @@ function buildMultipleResult(searchLink, result) {
     var book = result.booklist[i_result];
     var tr = '<tr>' +
              '<td><a href="' + book.bookURL + '" target="_blank">' + utils.encodeHTML(book.bookName) + '</a></td>' +
-             '<td>' + book.onshelfTotal + LANG['FOUND3'] +
-             (book.reserveCount?' ' + book.reserveCount + LANG['FOUND4']:'') +
+             '<td>' + lang('HKPL_FOUND_ONSHELF').replace('$1', book.onshelfTotal) +
+             (book.reserveCount?lang('HKPL_FOUND_RESERVE').replace('$1', book.reserveCount):'') +
              '</td>' +
              '<td>' + (book.publishYear || '&nbsp;') + '</td>' +
              '</tr>';
-             //'<td><a style="white-space:nowrap; color:#6a0;" class="' + MULTI_RESULT_SEARCH_INLINE_CLASS + '" href="javascript:void(0);"' + ' searchurl="' + searchUrl + '">' + LANG['SEARCH'] + '</a></td>');
+             //'<td><a style="white-space:nowrap; color:#6a0;" class="' + MULTI_RESULT_SEARCH_INLINE_CLASS + '" href="javascript:void(0);"' + ' searchurl="' + searchUrl + '">' + lang('SEARCH') + '</a></td>');
 
     html += tr;
   }
@@ -550,8 +572,8 @@ function buildMultipleResult(searchLink, result) {
                (id?' id="' + id + '"':'') +
                ' searchurl="' + url + '">' + text + '</a>';
       };
-      var prevHTML = result.currPage>1?createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, result.currPage - 1, LANG['SEARCH_PREV']):'';
-      var nextHTML = result.currPage<result.totalPage?createSearchInlineLink(MULTI_RESULT_NEXT_LINK_ID_PREFIX + searchId, result.searchURL, result.currPage + 1, LANG['SEARCH_NEXT']):'';
+      var prevHTML = result.currPage>1?createSearchInlineLink(MULTI_RESULT_PREV_LINK_ID_PREFIX + searchId, result.searchURL, result.currPage - 1, lang('SEARCH_PREV')):'';
+      var nextHTML = result.currPage<result.totalPage?createSearchInlineLink(MULTI_RESULT_NEXT_LINK_ID_PREFIX + searchId, result.searchURL, result.currPage + 1, lang('SEARCH_NEXT')):'';
       var pagingHTML = '';
       var lastPageInPagingHTML = 0;
       // first 3 pages
@@ -780,13 +802,13 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
 
   if (forceNotFound || searchResult.resultCount === 0) {
     // not found
-    searchLink.innerHTML = LANG['NOTFOUND'];
+    searchLink.innerHTML = lang('NOTFOUND');
 
     // not found and not in gallery display mode, show link to search books.com.tw
     // it is ugly to show the link in shelf display mode
     if (bookName && g_displayMode != DISPLAY_GALLERY) {
       var a = document.createElement('a');
-      a.innerHTML = LANG['SEARCH_BOOKS_TW'];
+      a.innerHTML = lang('SEARCH_BOOKS_TW');
       a.href = '#';
       a.setAttribute('bookname', bookName);
       a.className = searchLink.className + ' ' + SEARCH_ADDINFO_CLASS + ' ' + SEARCH_ADDINFO_BOOKS_TW_CLASS;
@@ -829,8 +851,8 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
         searchLink.title = onshelfLibString;
       }
 
-      searchLink.innerHTML = parsedSingle.onshelfTotal + LANG['FOUND3'] +
-                             (parsedSingle.reserveCount?' ' + parsedSingle.reserveCount + LANG['FOUND4']:'');
+      searchLink.innerHTML = lang('HKPL_FOUND_ONSHELF').replace('$1', parsedSingle.onshelfTotal) +
+                             (parsedSingle.reserveCount?lang('HKPL_FOUND_RESERVE').replace('$1', parsedSingle.reserveCount):'');
 
       // show the book name if it is search by name, in case the result is incorrect
       if (searchParam.type == SEARCH_TYPE_NAME) {
@@ -848,7 +870,7 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
   else if (searchResult.resultCount > 1) {
     searchResult.status = SEARCH_RESULT_MULTI;
 
-    searchLink.innerHTML = LANG['MULTIPLE'];
+    searchLink.innerHTML = lang('MULTIPLE');
 
     t = extract(oldt, '<li class="record">');
     while (t) {
@@ -863,7 +885,7 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
     t = extract(oldt, '<div class="pageLinks">', '</div>');
   }
   else {
-    searchLink.innerHTML = LANG['UNKNOWN'];
+    searchLink.innerHTML = lang('UNKNOWN');
   }
 
   DEBUG(searchResult);
@@ -900,6 +922,8 @@ function parseDoubanLinks(obj) {
 }
 
 function anobiiAddDoubanComments_onload(review, apiurl) {
+  DEBUG('anobiiAddDoubanComments_onload');
+
   var totalResult = review['opensearch:totalResults']['$t'];
 
   // store the list of review in a dummy div for tab switching
@@ -910,7 +934,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
     divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
     document.body.appendChild(divDoubanReview);
   }
-  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + LANG['DOUBAN_HEADING'].replace('$1', totalResult) + ' </strong></h2>';
+  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' </strong></h2>';
   DEBUG('Douban review entry=' + review.entry.length);
   for (var i=0 ; i<review.entry.length ; i++) {
     var entry = review.entry[i];
@@ -949,7 +973,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
     var useless = parseDoubanValue(entry, 'db:useless', '@value', 0);
     var helpfulHTML = '';
     if (useful + useless > 0) {
-      helpfulHTML = '<p class="helpful">' + LANG['DOUBAN_HELPFUL'].replace('$1', useful + '/' + (useful + useless)) + '</p>';
+      helpfulHTML = '<p class="helpful">' + lang('DOUBAN_HELPFUL').replace('$1', useful + '/' + (useful + useless)) + '</p>';
     }
 
     // reviwe fullinfo url
@@ -962,7 +986,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
     var commentCountHTML = '';
     if (commentCount) {
       commentCountHTML = ' | <a href="' + reviewLinks['alternate'] + '" class="feedbacks_link" target="_blank">' +
-                         LANG['DOUBAN_COMMENT'].replace('$1', commentCount) + '</a>';
+                         lang('DOUBAN_COMMENT').replace('$1', commentCount) + '</a>';
     }
 
     // follow Anobii comment HTML structure to simulate the UI
@@ -980,7 +1004,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
                   <p>' +
                     entry['summary']['$t'] +
                     '<a href="' + reviewLinks['alternate'] +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + reviewFullInfoURL + '">' +
-                    LANG['DOUBAN_MORE'].replace('$1', parseDoubanValue(entry, 'db:comments', '@value', 0)) + '</a>' +
+                    lang('DOUBAN_MORE').replace('$1', parseDoubanValue(entry, 'db:comments', '@value', 0)) + '</a>' +
         '         </p> \
                 </div> \
               </div> \
@@ -990,7 +1014,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
           <p class="comment_details">' +
             authorIconHTML +
         '   <a href="' + authorLinks['alternate'] + '">' + entry['author']['name']['$t'] + '</a>' +
-            LANG['DOUBAN_TIME'].replace('$1', formatAnobiiDate(reviewTime)) +
+            lang('DOUBAN_TIME').replace('$1', formatAnobiiDate(reviewTime)) +
             commentCountHTML +
         ' </p> \
         </li> \
@@ -1022,7 +1046,7 @@ function anobiiAddDoubanComments_createTab(review) {
   }
   var a = document.createElement('a');
   a.href = '#';
-  a.innerHTML = LANG['DOUBAN_REVIEW'] + (totalResult?(' <small>(' + totalResult + ')</small>'):'');
+  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + ')</small>'):'');
   a.addEventListener('click', anobiiAddDoubanComments_onClickTab, false);
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
@@ -1081,13 +1105,13 @@ function anobiiAddDoubanComments_addClickEvent() {
           url: fullinfourl,
           onload: function(t) {
             try {
-              var fullinfoJSON = g_options.translatetc?toTrad(t.responseText):t.responseText;
+              var fullinfoJSON = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
               var fullinfo = utils.parseJSON(fullinfoJSON);
               // remove the review HTML and extra <br/>
               e.target.parentNode.innerHTML = utils.extract(fullinfo.html, null, '<div class="review-panel"').replace(/(\s*<br\/>\s*)+$/, '');
             }
             catch (err) {
-              e.target.innerHTML = LANG['ERROR'];
+              e.target.innerHTML = lang('ERROR');
             }
           }
         });
@@ -1108,7 +1132,7 @@ function anobiiAddDoubanComments_addClickEvent() {
           url: reviewapiurl,
           onload: function(t) {
             try {
-              var reviewJSON = g_options.translatetc?toTrad(t.responseText):t.responseText;
+              var reviewJSON = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
               var review = utils.parseJSON(reviewJSON);
               if (review) {
                 anobiiAddDoubanComments_onload(review, reviewapiurl);
@@ -1119,7 +1143,7 @@ function anobiiAddDoubanComments_addClickEvent() {
               }
             }
             catch (err) {
-              e.target.innerHTML = LANG['ERROR'];
+              e.target.innerHTML = lang('ERROR');
             }
           }
         });
@@ -1128,7 +1152,7 @@ function anobiiAddDoubanComments_addClickEvent() {
         return false;
       }
       else if (utils.hasClass(target, 'feedbacks_link')) {
-        // doupan comment link, get the HTML and parse the comments block
+        // douban comment link, get the HTML and parse the comments block
 
         // check if the feedback already created, if yes, just toggle otherwise call ajax and create one
         var feedbackres = xpath('//div[@' + DOUBAN_FEEDBACK_URL_ATTR + '="' + target.href + '"]');
@@ -1155,7 +1179,7 @@ function anobiiAddDoubanComments_addClickEvent() {
 
               while (feedback) {
                 feedback = utils.extract(feedback, '', '<div class="align-right">');
-                feedback = g_options.translatetc?toTrad(feedback):feedback;
+                feedback = (g_options.translatetc && g_lang != LANG_SC)?toTrad(feedback):feedback;
                 // <h3 ...><span class="pl">[time]<a href="http://www.douban.com/people/[id]/">[name]</a></span></h3>
                 var feedbackSenderLine = utils.extract(feedback, '<h3', '</h3>');
                 feedbackSenderLine = feedbackSenderLine.replace(/^[^>]*>/, '').replace('class="pl"', '');
@@ -1174,7 +1198,7 @@ function anobiiAddDoubanComments_addClickEvent() {
                       feedback +
                   ' </li> \
                     <li class="comment_details">' +
-                      feedbackSender + ' ' + LANG['DOUBAN_TIME'].replace('$1', formatAnobiiDate(feedbackTime)) +
+                      feedbackSender + ' ' + lang('DOUBAN_TIME').replace('$1', formatAnobiiDate(feedbackTime)) +
                   ' </li> \
                   </ul>';
                 /*jshint multistr:false */
@@ -1232,10 +1256,10 @@ function anobiiAddDoubanComments_pagination(review, container, apiurl) {
 
     // totalPage must > 1
     if (currPage > 1) {
-      html = '<a href="#" class="prev" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage - 1) + '">' + LANG['DOUBAN_COMMENT_PREV'] + '</a>' + html;
+      html = '<a href="#" class="prev" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage - 1) + '">' + lang('DOUBAN_COMMENT_PREV') + '</a>' + html;
     }
     if (currPage != totalPage) {
-      html += '<a href="#" class="next" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage + 1) + '">' + LANG['DOUBAN_COMMENT_NEXT'] + '</a>';
+      html += '<a href="#" class="next" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage + 1) + '">' + lang('DOUBAN_COMMENT_NEXT') + '</a>';
     }
     html = '<p class="pagination_wrap">' + html + '</p>';
 
@@ -1247,6 +1271,8 @@ function anobiiAddDoubanComments_pagination(review, container, apiurl) {
 }
 
 function anobiiAddDoubanComments(isbn) {
+  DEBUG('anobiiAddDoubanComments isbn=' + isbn);
+
   if (!isbn) return;
 
   var apiurl = 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=json';
@@ -1255,7 +1281,7 @@ function anobiiAddDoubanComments(isbn) {
     url: apiurl,
     onload: function(t) {
       try {
-        var reviewJSON = g_options.translatetc?toTrad(t.responseText):t.responseText;
+        var reviewJSON = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
         var review = utils.parseJSON(reviewJSON);
         if (anobiiAddDoubanComments_onload(review, apiurl)) {
           anobiiAddDoubanComments_createTab(review);
@@ -1435,7 +1461,7 @@ function addAnobiiLink(ele, showCover) {
             }
           }
           catch (err) {
-            ele.innerHTML = isbn + ' ' + LANG['ERROR'];
+            ele.innerHTML = isbn + ' ' + lang('ERROR');
           }
         }
       }
@@ -1481,7 +1507,7 @@ function addAnobiiRating(ele, bookId) {
               var parentTr = parent(ele, 'tr');
               if (parentTr) {
                 var tr = document.createElement('tr');
-                tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + LANG['ANOBII_RATING'] + '</strong>' +
+                tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + lang('ANOBII_RATING') + '</strong>' +
                                '<td valign="top">' + rating + '</td></tr>';
                 parentTr.parentNode.insertBefore(tr, parentTr.nextSibling);
               }
@@ -1490,7 +1516,7 @@ function addAnobiiRating(ele, bookId) {
               var parentLi = parent(ele, 'li');
               if (parentLi) {
                 var li = document.createElement('li');
-                li.innerHTML = LANG['ANOBII_RATING'] + ':<span>' + rating +  '</span>';
+                li.innerHTML = lang('ANOBII_RATING') + ':<span>' + rating +  '</span>';
                 parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
               }
             }
@@ -1510,8 +1536,6 @@ function _hkplSuggestion_booksTW(t) {
   }
 
   t = extract(t, '<div class="prd001">');
-
-  DEBUG(t);
 
   var res = xpath("//form[@name='entryform1']//input[@value='Book']");
   if (res) {
@@ -1550,7 +1574,7 @@ function _hkplSuggestion_onClick() {
   var url = address0.value;
   if (/^https?:\/\/[^\/]*\.books\.com\.tw/.test(url)) {
     g_loading = true;
-    document.getElementById(GET_SUGGESTION_BUTTON_ID).value = LANG['LOADING'];
+    document.getElementById(GET_SUGGESTION_BUTTON_ID).value = lang('LOADING');
     utils.crossOriginXMLHttpRequest({
       method: 'GET',
       url: url,
@@ -1558,12 +1582,12 @@ function _hkplSuggestion_onClick() {
       onload: function(t) {
         g_loading = false;
         _hkplSuggestion_booksTW(t);
-        document.getElementById(GET_SUGGESTION_BUTTON_ID).value = LANG['GET_SUGGESTION'];
+        document.getElementById(GET_SUGGESTION_BUTTON_ID).value = lang('GET_SUGGESTION');
       }
     });
   }
   else {
-    alert(LANG['INVALID_SUGGESTION_URL']);
+    alert(lang('INVALID_SUGGESTION_URL'));
   }
 }
 
@@ -1594,7 +1618,7 @@ function hkplSuggestion() {
     var input = document.createElement('input');
     input.setAttribute('id', GET_SUGGESTION_BUTTON_ID);
     input.type = 'button';
-    input.value = LANG['GET_SUGGESTION'];
+    input.value = lang('GET_SUGGESTION');
     input.addEventListener('click', function(e) {
       _hkplSuggestion_onClick(e);
     }, false);
@@ -1614,7 +1638,7 @@ function booksTWAddHKPLSuggestionLink() {
   if (res) {
     var li = document.createElement('li');
     var button = document.createElement('button');
-    button.innerHTML = LANG['HKPL_SUGGESTION'];
+    button.innerHTML = lang('HKPL_SUGGESTION');
     button.addEventListener('click', function(e) {
       var form = document.createElement('form');
       form.action = 'https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html';
@@ -1645,6 +1669,18 @@ else {
 
 if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
+  ///g_anobiiLanguage = documen
+  var anobiilang = xpath('//select[@id="language_select"]/option[@selected]/@value').value;
+  if (anobiilang == ANOBII_LANG_TC) {
+    g_lang = LANG_TC;
+  }
+  else if (anobiilang == ANOBII_LANG_SC) {
+    g_lang = LANG_SC;
+  }
+  else {
+    g_lang = LANG_EN;
+  }
+  DEBUG('Anobii lang=' + g_lang);
 
   /*jshint multistr:true, newcap:false */
   if (typeof(GM_addStyle) !== 'undefined') {
