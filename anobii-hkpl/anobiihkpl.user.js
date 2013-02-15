@@ -58,6 +58,7 @@ var utils = org.ellab.utils;
 var extract = org.ellab.utils.extract;
 var xpath = org.ellab.utils.xpath;
 var xpathl = org.ellab.utils.xpathl;
+var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
 
 var ANOBII_LANG_EN = 1;
 var ANOBII_LANG_TC = 2;
@@ -82,6 +83,9 @@ LANG['SEARCH_BOOKS_TW'] = ['Search 博客來', '搜尋博客來', '搜寻博客�
 LANG['ERROR'] = ['Error', '錯誤', '错误'];
 LANG['UNKNOWN'] = ['Error', '錯誤', '错误'];
 
+LANG['ANOBII_EDIT_BOOK_MOREDATE_1'] = ['Yesterday', '昨天', '昨天'];
+LANG['ANOBII_EDIT_BOOK_MOREDATE_2'] = ['2 days ago', '前天', '前天'];
+
 LANG['GET_SUGGESTION'] = '填寫內容';
 LANG['LOADING'] = ['Loading...', '載入中...', '载入中...'];
 LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
@@ -90,9 +94,10 @@ LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
 LANG['ANOBII_RATING'] = ['Anobii Rating', 'aNobii 評級', 'aNobii 评级'];
 LANG['ANOBII_RATING_DOUBAN_PEOPLE_COUNT'] = ['$1/$2', '$1 人評價 $2 人擁有', '$1 人评价 $2 人拥有'];
-LANG['DOUBAN_PAGE'] = ['Douban Page', '豆瓣網頁', '豆瓣網頁'];
+LANG['DOUBAN_PAGE'] = ['Douban Page', '豆瓣網頁', '豆瓣网页'];
 LANG['DOUBAN_REVIEW'] = ['Douban Review', '豆瓣評論', '豆瓣评论'];
 LANG['DOUBAN_HEADING'] = ['$1 Reviews', '$1 則評論', '$1 则评论'];
+LANG['DOUBAN_REVIEW_ALL_EDITION'] = ['$1 Reviews (all editions)', '$1 則評論(所有版本)', '$1 则评论(所有版本)'];
 LANG['DOUBAN_HELPFUL'] = ['$1 people find this helpful', '$1 個人認為這是很有幫助', '$1 个人认为这是很有帮助'];
 LANG['DOUBAN_MORE'] = [' ... (continue)', ' ...(繼續) ', ' ...(继续) '];
 LANG['DOUBAN_COMMENT'] = [' ($1 feedbacks) ', ' ($1 個回應) ', ' ($1 个回应) '];
@@ -147,16 +152,19 @@ var SEARCH_ADDINFO_BOOKS_TW_CLASS = 'bookworm-search-addinfo-books-tw'; // css c
 var SEARCH_ADDINFO_BOOKNAME_CLASS = 'bookworm-search-addinfo-bookname'; // css class name for additional book name
 var MULTI_RESULT_LAYER_CLASS = 'bookworm-multiple-layer';
 var MULTI_RESULT_SEARCH_INLINE_CLASS = 'bookworm-search-inline';
+var ANOBII_EDIT_BOOK_MOREDATE_CLASS = 'bookworm-moredate'; // css class name for for implement 'yesterday', '2 days ago' shortcut button
+var ANOBII_EDIT_BOOK_MOREDATE_ATTR = 'bookworm-moredate-diff'; // attribute for implement 'yesterday' (-1), '2 days ago' (-2) shortcut button
 
 var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 
 var SEARCH_ISBN_ATTR = 'bookworm-isbn';
 
 var DOUBAN_REVIEW_TAB_REF = 'douban-review'; // the ref='xxx' of the tab li
-var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review';
+var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review'; // div to store the douban review HTML for tab switching
 var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-douban-review-fullinfo'; // the attribute name to store the fullinfo review json url
 var DOUBAN_FEEDBACK_URL_ATTR = 'bookworm-douban-feedback-url'; // the attribute name to store the URL of feedback div
 var DOUBAN_REVIEW_API_URL_ATTR = 'bookworm-douban-review-api'; // the attribtue name to store the review json url
+var DOUBAN_REVIEW_ALL_EDITION_ATTR = 'bookworm-douban-review-all-edition'; // the attribtue name to store the all edition review count
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 
@@ -225,21 +233,6 @@ function encodeUTF8(s) {
   }
 
   return utftext;
-}
-
-// Traverse the node upward to find the nearest parent of the tag
-function parent(node, tag) {
-  if (!node) return node;
-
-  if (!tag) return node.parentNode;
-
-  node = node.parentNode;
-  while (node) {
-    if (node.tagName && node.tagName.toUpperCase() == tag.toUpperCase()) {
-      return node;
-    }
-    node = node.parentNode;
-  }
 }
 
 // MMM D YYYY
@@ -908,24 +901,10 @@ function parseDoubanLinks(obj) {
   return res;
 }
 
-function anobiiAddDoubanComments_onload(review, apiurl) {
-  DEBUG('anobiiAddDoubanComments_onload');
+function anobiiAddDoubanComments_onload_toHTML(review) {
+  DEBUG('anobiiAddDoubanComments_onload_toHTML review entry length=' + review.entry.length);
 
-  var totalResult = review['opensearch:totalResults']['$t'];
-
-  var doubanBookLink = parseDoubanLinks(review['link'])['alternate'].replace('/reviews', '');
-
-  // store the list of review in a dummy div for tab switching
-  var divDoubanReview = document.getElementById(DOUBAN_REVIEW_DIV_ID);
-  if (!divDoubanReview) {
-    divDoubanReview = document.createElement('div');
-    divDoubanReview.style.display = 'none';
-    divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
-    document.body.appendChild(divDoubanReview);
-  }
-  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' </strong>' +
-                              '<a href="' + doubanBookLink + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h2>';
-  DEBUG('Douban review entry=' + review.entry.length);
+  var html = '';
   for (var i=0 ; i<review.entry.length ; i++) {
     var entry = review.entry[i];
     var authorLinks = parseDoubanLinks(entry.author.link);
@@ -942,7 +921,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
       reviewTime = new Date(Date.parse(entry['published']['$t']));
     }
     catch (err) {
-      //console.log(err);
+      DEBUG(err);
     }
 
     // rating
@@ -980,7 +959,7 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
     }
 
     // follow Anobii comment HTML structure to simulate the UI
-    var html =
+    var ulhtml =
       /*jshint multistr:true */
       '<ul class="comment_block"> \
         <li> \
@@ -1010,15 +989,57 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
         </li> \
       </ul>';
       /*jshint multistr:false */
-    divDoubanReview.innerHTML += html;
+    html += ulhtml;
   }
 
+  return html;
+}
+
+function anobiiAddDoubanComments_onload(review, apiurl, allEditionCount) {
+  DEBUG('anobiiAddDoubanComments_onload');
+
+  var totalResult = review['opensearch:totalResults']['$t'];
+
+  var doubanReviewURL = parseDoubanLinks(review['link'])['alternate'];
+  var doubanBookURL = doubanReviewURL.replace('/reviews', '');
+
+  // store the list of review in a dummy div for tab switching
+  var divDoubanReview = document.getElementById(DOUBAN_REVIEW_DIV_ID);
+  if (!divDoubanReview) {
+    divDoubanReview = document.createElement('div');
+    divDoubanReview.style.display = 'none';
+    divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
+    document.body.appendChild(divDoubanReview);
+  }
+
+  if (typeof(allEditionCount) === 'undefined') {
+    allEditionCount = xpath('//a[@' + DOUBAN_REVIEW_ALL_EDITION_ATTR + ']/@' + DOUBAN_REVIEW_ALL_EDITION_ATTR);
+    if (allEditionCount) {
+      allEditionCount = parseInt(allEditionCount.value, 10);
+    }
+    else {
+      allEditionCount = 0;
+    }
+    DEBUG('get allEditionCount from dom=' + allEditionCount);
+  }
+
+  var allEditionCountHTML = '';
+  if (allEditionCount != totalResult && allEditionCount > 0) {
+    allEditionCountHTML =  '<span style="color:black;"> | </span><a href="' + doubanReviewURL + '" ' + DOUBAN_REVIEW_ALL_EDITION_ATTR + '="' + allEditionCount + '" target="_blank">' +
+                           lang('DOUBAN_REVIEW_ALL_EDITION').replace('$1', allEditionCount) + '</a></span>';
+  }
+
+  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' </strong>' +
+                              allEditionCountHTML +
+                              '<span style="color:black;"> | </span><a href="' + doubanBookURL + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h2>';
+
+  divDoubanReview.innerHTML += anobiiAddDoubanComments_onload_toHTML(review);
   anobiiAddDoubanComments_pagination(review, divDoubanReview, apiurl);
 
   return true;
 }
 
-function anobiiAddDoubanComments_createTab(review) {
+function anobiiAddDoubanComments_createTab(review, allEditionCount) {
   // create the Douban review tab
 
   DEBUG('anobiiAddDoubanComments_createTab');
@@ -1036,7 +1057,11 @@ function anobiiAddDoubanComments_createTab(review) {
   }
   var a = document.createElement('a');
   a.href = '#';
-  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + ')</small>'):'');
+  var allEditionCountHTML = '';
+  if (allEditionCount != totalResult && allEditionCount > 0) {
+    allEditionCountHTML = '/' + allEditionCount;
+  }
+  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + allEditionCountHTML + ')</small>'):'');
   a.addEventListener('click', anobiiAddDoubanComments_onClickTab, false);
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
@@ -1202,7 +1227,7 @@ function anobiiAddDoubanComments_addClickEvent() {
               divFeedbacksWrap.setAttribute(DOUBAN_FEEDBACK_URL_ATTR, target.href);
               divFeedbacksWrap.innerHTML = feedbackHTML;
 
-              var parentUl = parent(target, 'ul');
+              var parentUl = utils.parent(target, 'ul');
               if (parentUl) {
                 parentUl.parentNode.insertBefore(divFeedbacksWrap, parentUl.nextSibling);
               }
@@ -1273,16 +1298,91 @@ function anobiiAddDoubanComments(isbn) {
       try {
         var reviewJSON = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
         var review = utils.parseJSON(reviewJSON);
-        if (anobiiAddDoubanComments_onload(review, apiurl)) {
-          anobiiAddDoubanComments_createTab(review);
-          anobiiAddDoubanComments_addClickEvent();
-        }
+
+        utils.crossOriginXMLHttpRequest({
+          method: 'GET',
+          url: parseDoubanLinks(review['link'])['alternate'],
+          onload: function(t) {
+            var title = utils.extract(t.responseText, '<title>', '</title>');
+            if (title) {
+              title = title.match(/(\d+)\)\s*$/);
+            }
+            title = title?title[1]:0;
+            if (anobiiAddDoubanComments_onload(review, apiurl, title)) {
+              anobiiAddDoubanComments_createTab(review, title);
+              anobiiAddDoubanComments_addClickEvent();
+            }
+          }
+        });
       }
       catch (err) {
-        //
+        DEBUG(err);
       }
     }
   });
+}
+
+function anobiiEditBookAddMoreDate() {
+  var div = document.getElementById('edit_book_div');
+  if (div) {
+    var observer = new MutationObserver(function(mutations, observer) {
+      xpathl('//a[@class="starton_today" or @class="gotthison_today"]').each(function() {
+        var buttonSet = [
+          { label: 'ANOBII_EDIT_BOOK_MOREDATE_1', datediff: -1 },
+          { label: 'ANOBII_EDIT_BOOK_MOREDATE_2', datediff: -2 }
+        ];
+        for (var i=buttonSet.length-1 ; i>=0 ; i--) {
+          // use insertBefore, so reverse the order
+          var a = document.createElement('a');
+          a.innerHTML = lang(buttonSet[i].label);
+          a.className = ANOBII_EDIT_BOOK_MOREDATE_CLASS;
+          a.setAttribute(ANOBII_EDIT_BOOK_MOREDATE_ATTR, buttonSet[i].datediff);
+          a.href = '#';
+          this.parentNode.insertBefore(a, this.nextSibling);
+        }
+      });
+
+      div.addEventListener('click', function(e) {
+        var target = e.target;
+
+        if (target.className === ANOBII_EDIT_BOOK_MOREDATE_CLASS) {
+          var datediff = parseInt(target.getAttribute(ANOBII_EDIT_BOOK_MOREDATE_ATTR), 10);
+          if (!isNaN(datediff)) {
+            var parentDiv = utils.parent(target, null, 'datePickerSet');
+            if (parentDiv) {
+              var dates = parentDiv.getElementsByTagName('select');
+              if (dates && dates.length === 3) {
+                var year  = dates[0];
+                var month = dates[1];
+                var day   = dates[2];
+
+                year.removeAttribute('disabled');
+                month.removeAttribute('disabled');
+                day.removeAttribute('disabled');
+
+                var today = new Date();
+                today.setDate(today.getDate() + datediff);
+                var i = 0;
+                for (i = 0; i < dates[0].options.length; i++) {
+                  if (dates[0].options[i].value == today.getFullYear().toString()) {
+                    break;
+                  }
+                }
+                dates[0].options.selectedIndex = i;
+                dates[1].options.selectedIndex = today.getMonth()+1;
+                dates[2].options.selectedIndex = today.getDate();
+              }
+            }
+          }
+
+          e.stopPropagation();
+          e.preventDefault();
+          return false;
+        }
+      }, true);
+    });
+    observer.observe(div, { childList: true });
+  }
 }
 
 function extractISBN(s) {
@@ -1471,7 +1571,7 @@ function addAnobiiRating(ele, bookId, anobiiBookURL) {
     onload: function(t) {
       ele.removeChild(loading);
       if (t.status == 200) {
-        var obj = utils.parseJSON(t.responseText);console.log(obj);
+        var obj = utils.parseJSON(t.responseText);
         if (obj && obj.length > 0) {
           obj = obj[0];
           if (obj.totalOwner > 0) {
@@ -1511,7 +1611,7 @@ function addAnobiiRating(ele, bookId, anobiiBookURL) {
 
                 rating += ' (' + obj.totalRatePerson + '/' + obj.totalOwner + ')';
                 if (g_pageType == PAGE_TYPE_HKPL_BOOK) {
-                  var parentTr = parent(ele, 'tr');
+                  var parentTr = utils.parent(ele, 'tr');
                   if (parentTr) {
                     var tr = document.createElement('tr');
                     tr.innerHTML = '<tr valign="CENTER"><td width="20%" valign="top"><strong>' + lang('ANOBII_RATING') + '</strong>' +
@@ -1520,7 +1620,7 @@ function addAnobiiRating(ele, bookId, anobiiBookURL) {
                   }
                 }
                 else if (g_pageType == PAGE_TYPE_BOOKS_TW_BOOK)  {
-                  var parentLi = parent(ele, 'li');
+                  var parentLi = utils.parent(ele, 'li');
                   if (parentLi) {
                     var li = document.createElement('li');
                     li.innerHTML = lang('ANOBII_RATING') + ':<span>' + rating +  '</span>';
@@ -1720,7 +1820,8 @@ if (/anobii\.com/.test(document.location.href)) {
                  .bookworm-search-addinfo-bookname { font-weight:normal; overflow:hidden; text-overflow:ellipsis; width:100px; white-space:nowrap; } \
                  .gallery_view .bookworm-search-addinfo-bookname: { width:100%; } \
                  .bookworm-anobii-expand-tag #tagSuggest p { max-height: none !important; } \
-                 .bookworm-multiple-layer { position:absolute; background-color:white; box-shadow: 6px 6px 10px #aaa; }');
+                 .bookworm-multiple-layer { position:absolute; background-color:white; box-shadow: 6px 6px 10px #aaa; } \
+                 .bookworm-moredate { margin-left:7px; }');
   }
   /*jshint multistr:false, newcap:true */
 
@@ -1737,6 +1838,8 @@ if (/anobii\.com/.test(document.location.href)) {
   }, false);
 
   processBookList();
+
+  anobiiEditBookAddMoreDate();
 }
 else if (/\/lib\/item\?id=chamo\:\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_BOOK;
@@ -1762,3 +1865,4 @@ else if (/\/\/book\.douban\.com\/subject\/\d+/.test(document.location.href)) {
 }
 
 })();
+
