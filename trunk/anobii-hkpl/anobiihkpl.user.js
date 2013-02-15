@@ -90,6 +90,7 @@ LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
 LANG['ANOBII_RATING'] = ['Anobii Rating', 'aNobii 評級', 'aNobii 评级'];
 LANG['ANOBII_RATING_DOUBAN_PEOPLE_COUNT'] = ['$1/$2', '$1 人評價 $2 人擁有', '$1 人评价 $2 人拥有'];
+LANG['DOUBAN_PAGE'] = ['Douban Page', '豆瓣網頁', '豆瓣網頁'];
 LANG['DOUBAN_REVIEW'] = ['Douban Review', '豆瓣評論', '豆瓣评论'];
 LANG['DOUBAN_HEADING'] = ['$1 Reviews', '$1 則評論', '$1 则评论'];
 LANG['DOUBAN_HELPFUL'] = ['$1 people find this helpful', '$1 個人認為這是很有幫助', '$1 个人认为这是很有帮助'];
@@ -912,6 +913,8 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
 
   var totalResult = review['opensearch:totalResults']['$t'];
 
+  var doubanBookLink = parseDoubanLinks(review['link'])['alternate'].replace('/reviews', '');
+
   // store the list of review in a dummy div for tab switching
   var divDoubanReview = document.getElementById(DOUBAN_REVIEW_DIV_ID);
   if (!divDoubanReview) {
@@ -920,7 +923,8 @@ function anobiiAddDoubanComments_onload(review, apiurl) {
     divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
     document.body.appendChild(divDoubanReview);
   }
-  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' </strong></h2>';
+  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' </strong>' +
+                              '<a href="' + doubanBookLink + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h2>';
   DEBUG('Douban review entry=' + review.entry.length);
   for (var i=0 ; i<review.entry.length ; i++) {
     var entry = review.entry[i];
