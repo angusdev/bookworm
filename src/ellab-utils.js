@@ -105,6 +105,71 @@ org.ellab.utils.each = function(object, callback, args) {
   return object;
 };
 
+org.ellab.utils.find = function(object, callbackOrMatch) {
+  var result = null;
+  if (typeof callbackOrMatch === 'function') {
+    org.ellab.utils.each(object, function() {
+      if (callbackOrMatch.apply(this)) {
+        result = this;
+        return false;
+      }
+    });
+    return result;
+  }
+  else {
+    // by matching properties
+    return org.ellab.find(object, function() {
+      for (var e in callbackOrMatch) {
+        if (callbackOrMatch[e] !== this[e]) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+};
+
+org.ellab.utils.grep = function(object, callbackOrMatch) {
+  var result = [];
+  if (typeof callbackOrMatch === 'function') {
+    org.ellab.utils.each(object, function() {
+      if (callbackOrMatch.apply(this)) {
+        result.push(this);
+      }
+    });
+    return result;
+  }
+  else {
+    // by matching properties
+    return org.ellab.grep(object, function() {
+      for (var e in callbackOrMatch) {
+        if (callbackOrMatch[e] !== this[e]) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+};
+
+org.ellab.utils.arr_first = function(arr) {
+  if (Object.prototype.toString.call(arr) === '[object Array]' && arr.length > 0) {
+    return arr[0];
+  }
+  else {
+    return null;
+  }
+}
+
+org.ellab.utils.arr_last = function(arr) {
+  if (Object.prototype.toString.call(arr) === '[object Array]' && arr.length > 0) {
+    return arr[arr.length - 1];
+  }
+  else {
+    return null;
+  }
+}
+
 // return the first element instead of an array if the selector is simply an id
 org.ellab.utils.sizzleSmart = function(selector, context, results, seed) {
   if (selector.match(/^\s*#[a-zA-Z0-9\-_]+\s*$/)) {
@@ -259,12 +324,12 @@ org.ellab.utils.detectScroll = function(callback) {
   }, false);
 };
 
-org.ellab.utils.xpath = function(xpath, ele) {
-  return document.evaluate(xpath, ele?ele:document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+org.ellab.utils.xpath = function(xpath, ele, nsResolver) {
+  return document.evaluate(xpath, ele?ele:document, nsResolver, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 };
 
-org.ellab.utils.xpathl = function(xpath, ele) {
-  return document.evaluate(xpath, ele?ele:document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+org.ellab.utils.xpathl = function(xpath, ele, nsResolver) {
+  return document.evaluate(xpath, ele?ele:document, nsResolver, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
 };
 
 org.ellab.utils.getElementsByClassName = function(className, node) {
@@ -319,15 +384,55 @@ org.ellab.utils.parseXML = function(s) {
   return (new window.DOMParser()).parseFromString(s, "text/xml");
 };
 
+// iterate the parent nodes until callback return true
 // iterate the parent nodes until match the tag name
-org.ellab.utils.parent = function(node, tag) {
+org.ellab.utils.parent = function(node, tagOrCallback, immediateParentOnly) {
   if (!node) return node;
 
   var parentNode = node.parentNode;
 
-  if (!parentNode || !parentNode.tagName || parentNode.tagName.toUpperCase() == tag.toUpperCase()) return parentNode;
+  if (!parentNode || !tagOrCallback) return parentNode;
 
-  return this.parent(parentNode, tag);
+  if (typeof tagOrCallback === 'string' && parentNode.tagName && parentNode.tagName.toUpperCase() == tagOrCallback.toUpperCase()) return parentNode;
+
+  if (typeof tagOrCallback === 'function' && tagOrCallback.apply(parentNode)) return parentNode;
+
+  if (immediateParentOnly) {
+    return null;
+  }
+  else {
+    return this.parent(parentNode, tagOrCallback, immediateParentOnly);
+  }
+};
+
+// iterate the parent nodes until match the tag name
+org.ellab.utils.prevSibling = function(node, tagOrCallback, immediateSiblingOnly) {
+  if (!node) return node;
+
+  var prevSibling = node.previousSibling;
+
+  if (!prevSibling || !tagOrCallback) return prevSibling;
+
+  if (typeof tagOrCallback === 'string' && prevSibling.nodeType !== 3 && prevSibling.tagName && prevSibling.tagName.toUpperCase() == tagOrCallback.toUpperCase()) return prevSibling;
+
+  if (typeof tagOrCallback === 'function' && tagOrCallback.apply(prevSibling)) return prevSibling;
+
+  if (immediateSiblingOnly) {
+    return null;
+  }
+  else {
+    return this.prevSibling(prevSibling, tagOrCallback, immediateSiblingOnly);
+  }
+};
+
+org.ellab.utils.removeChild = function(node) {
+  if (!node) return node;
+
+  if (node.parentNode) {
+    node.parentNode.removeChild(node);
+  }
+
+  return node;
 };
 
 // inject an javascript to the main window, useful for call the function in window
@@ -403,6 +508,15 @@ org.ellab.utils.removeClass = function(ele, clazz) {
 org.ellab.utils.addClass = function(ele, clazz) {
   org.ellab.utils.removeClass(ele, clazz);
   ele.className += (ele.className?' ':'') + clazz;
+};
+
+org.ellab.utils.toggleClass = function(ele, clazz) {
+  if (org.ellab.utils.hasClass(ele, clazz)) {
+    org.ellab.utils.removeClass(ele, clazz);
+  }
+  else{
+    org.ellab.utils.addClass(ele, clazz);
+  }
 };
 
 org.ellab.utils.insertAfter = function(newnode, oldnode) {
