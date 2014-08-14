@@ -16,8 +16,8 @@
                   "http://www.anobii.com/tags/*", "http://www.anobii.com/news_neighbor*",
                   "http://webcat.hkpl.gov.hk/*",
                   "https://webcat.hkpl.gov.hk/*",
-                  "https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html*",
-                  "http://www.books.com.tw/exep/prod/booksfile.php?item=*",
+                  "https://www.hkpl.gov.hk/tc/about-us/collection-develop/suggestion.html*",
+                  "http://www.books.com.tw/products/*",
                   "http://book.douban.com/subject/*"],
       "css": ["bookworm.css"],
       "js": ["ellab-utils.js", "tongwen.js", "bookworm.user.js"]

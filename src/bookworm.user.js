@@ -1517,9 +1517,33 @@ function hkplAddAnobiiLink() {
 }
 
 function booksTWAddAnobiiLink() {
-  var res = xpath("//div[@id='pr_data']//span[text()='ISBN：']/../dfn[2]");
+  // assuming <li><meta itemprop="productID" content="isbn:9789866614187">ISBN：9789866614187</li>
+
+  var res = xpath("//li/meta[@itemprop='productID' and contains(@content, 'isbn:')]");
   if (res) {
-    addAnobiiLink(res, false);
+    // find the appendTo element (the top right info box)
+    // div
+    //   div
+    //     h1[itemprop="name"] Book Name
+    //   div
+    //     ul
+    //       li authoer
+    //       li publisher
+    //       li ...
+    //       li <-- insert here
+    var bookname = xpath("//h1[@itemprop='name']");
+    if (bookname) {
+      var infobox = xpath("./ul", utils.nextSibling(bookname.parentNode, 'div'));
+      if (infobox) {
+        var isbn = res.getAttribute('content').match(/isbn\:(.*)/);
+        if (isbn) {
+          var li = document.createElement('li');
+          li.innerHTML = 'ISBN：<span>' + isbn[1] + '</span>';
+          infobox.appendChild(li);
+          addAnobiiLink(li.getElementsByTagName('span')[0], false);
+        }
+      }
+    }
   }
 }
 
@@ -1623,7 +1647,7 @@ function addAnobiiRating(ele, bookId, anobiiBookURL) {
                   var parentLi = utils.parent(ele, 'li');
                   if (parentLi) {
                     var li = document.createElement('li');
-                    li.innerHTML = lang('ANOBII_RATING') + ':<span>' + rating +  '</span>';
+                    li.innerHTML = lang('ANOBII_RATING') + '：<span class="bookworm-anobii-rating">' + rating +  '</span>';
                     parentLi.parentNode.insertBefore(li, parentLi.nextSibling);
                   }
                 }
@@ -1644,43 +1668,46 @@ function _hkplSuggestion_booksTW(t) {
     return;
   }
 
-  t = extract(t, '<div class="prd001">');
-
   var res = xpath("//form[@name='entryform1']//input[@value='Book']");
   if (res) {
     res.checked = true;
   }
 
-  res = extract(t, '<span>', '</span>');
+  // <h1 itemprop="name">bookname</h1>
+  t = extract(t, '<h1 itemprop="name">');
+  res = extract(t, null, '</h1>');
   document.getElementById('title').value = res?res:'';
-  // <a href="http://search.books.com.tw/exep/prod_search.php?key=%AA%BB%CC&f=author">Author Name</a>
+  // <a href="http://search.books.com.tw/exep/prod_search.php?key=XXXXX&f=author">
   res = t.match(/<a href=\"[^\"]*f=author\">([^<]+)/);
   document.getElementById('author').value = res?res[1]:'';
-  // <a href="http://www.books.com.tw/exep/pub_book.php?pubid=xxx">publisher</a>
-  res = t.match(/<a href=\"[^\"]*pub_book\.php\?pubid=[^\"]*\">([^<]+)/);
-  document.getElementById('publisher').value = res?res[1]:'';
+  // <span itemprop="brand">Publisher</span>
+  res = extract(t, '<span itemprop="brand">', '</span>');
+  document.getElementById('publisher').value = res || '';
 
-  t = extract(t, 'pub_book.php?pubid=');
-  res = extract(t, '<dfn>', '</dfn>');
-  document.getElementById('place').value = res?res:'';
+  // <span itemprop="brand">Publisher</span></li><li>出版日期：2007/09/28</li>
+  res = extract(extract(t, '<span itemprop="brand">'), '<li>', '</li>');
+  document.getElementById('place').value = res || '';
 
-  res = t.match(/<span>ISBN[^<]*<\/span><dfn>([0-9|x|X]+)<\/dfn>/);
+  // <meta itemprop='productID' content='isbn:xxxxx'/>
+  res = t.match(/<meta itemprop='productID' content='isbn\:(.*)'\/>/);
   if (res) {
     document.getElementById('isbn').value = res[1];
     xpath("//form[@name='entryform1']//input[@value='ISBN']").checked = true;
   }
+
+  document.getElementById('recommend').focus();
 }
 
-function _hkplSuggestion_onClick() {
+function _hkplSuggestion_onclick() {
   if (g_loading) {
     return;
   }
 
-  var address0 = document.getElementById('address0');
-  if (!address0) {
+  var where = document.getElementById('where');
+  if (!where) {
     return;
   }
-  var url = address0.value;
+  var url = where.value;
   if (/^https?:\/\/[^\/]*\.books\.com\.tw/.test(url)) {
     g_loading = true;
     document.getElementById(GET_SUGGESTION_BUTTON_ID).value = lang('LOADING');
@@ -1722,35 +1749,44 @@ function hkplSuggestion() {
     }
   }
 
-  var address0 = document.getElementById('address0');
-  if (address0) {
+  var where = document.getElementById('where');
+  if (where) {
     var input = document.createElement('input');
     input.setAttribute('id', GET_SUGGESTION_BUTTON_ID);
     input.type = 'button';
     input.value = lang('GET_SUGGESTION');
     input.addEventListener('click', function(e) {
-      _hkplSuggestion_onClick(e);
+      _hkplSuggestion_onclick(e);
     }, false);
-    address0.parentNode.appendChild(input);
+    where.parentNode.appendChild(input);
 
     if (/autofill=1$/.test(document.location.href)) {
       if (document.referrer) {
-        address0.value = document.referrer;
-        _hkplSuggestion_onClick();
+        where.value = document.referrer;
+        _hkplSuggestion_onclick();
       }
     }
   }
 }
 
 function booksTWAddHKPLSuggestionLink() {
-  var res = xpath("//ul[@class='prf003']");
+  // assuming
+  // div
+  //   div.btn
+  //     a[href~=comment] Comment button
+  //   div.btn           <-- insert here
+  //     a suggstion
+  var res = xpath("//div[@class='btn']//a[contains(@href, '/prod_comment/comment_guide/')]");
   if (res) {
-    var li = document.createElement('li');
-    var button = document.createElement('button');
-    button.innerHTML = lang('HKPL_SUGGESTION');
-    button.addEventListener('click', function(e) {
+    var div = document.createElement('div');
+    div.className = 'btn';
+    div.setAttribute('style', 'margin-top: 5px;');
+    div.innerHTML = '<a href="#" class="type02_btn02"><span><span>' + lang('HKPL_SUGGESTION') + '</span></span></a>';
+    div.getElementsByTagName('a')[0].addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
       var form = document.createElement('form');
-      form.action = 'https://www.hkpl.gov.hk/tc_chi/collections/collections_bs/collections_bs.html';
+      form.action = 'https://www.hkpl.gov.hk/tc/about-us/collection-develop/suggestion.html';
       form.method = 'get';
       form.target = '_blank';
       var hidden = document.createElement('input');
@@ -1761,8 +1797,7 @@ function booksTWAddHKPLSuggestionLink() {
       form.submit();
       document.body.removeChild(form);
     }, false);
-    li.appendChild(button);
-    res.appendChild(li);
+    res.parentNode.parentNode.appendChild(div);
   }
 }
 
@@ -1846,12 +1881,12 @@ else if (/\/lib\/item\?id=chamo\:\d+/.test(document.location.href)) {
 
   hkplAddAnobiiLink();
 }
-else if (/collections_bs/.test(document.location.href)) {
+else if (/suggestion\.html/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_SUGGESTION;
 
   hkplSuggestion();
 }
-else if (/booksfile\.php/.test(document.location.href)) {
+else if (/books\.com\.tw\/products\/\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_BOOKS_TW_BOOK;
 
   booksTWAddHKPLSuggestionLink();
