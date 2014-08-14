@@ -405,7 +405,7 @@ org.ellab.utils.parent = function(node, tagOrCallback, immediateParentOnly) {
   }
 };
 
-// iterate the parent nodes until match the tag name
+// iterate the prevSibling nodes until match the tag name
 org.ellab.utils.prevSibling = function(node, tagOrCallback, immediateSiblingOnly) {
   if (!node) return node;
 
@@ -422,6 +422,26 @@ org.ellab.utils.prevSibling = function(node, tagOrCallback, immediateSiblingOnly
   }
   else {
     return this.prevSibling(prevSibling, tagOrCallback, immediateSiblingOnly);
+  }
+};
+
+// iterate the nextSibling nodes until match the tag name
+org.ellab.utils.nextSibling = function(node, tagOrCallback, immediateSiblingOnly) {
+  if (!node) return node;
+
+  var nextSibling = node.nextSibling;
+
+  if (!nextSibling || !tagOrCallback) return nextSibling;
+
+  if (typeof tagOrCallback === 'string' && nextSibling.nodeType !== 3 && nextSibling.tagName && nextSibling.tagName.toUpperCase() == tagOrCallback.toUpperCase()) return nextSibling;
+
+  if (typeof tagOrCallback === 'function' && tagOrCallback.apply(nextSibling)) return nextSibling;
+
+  if (immediateSiblingOnly) {
+    return null;
+  }
+  else {
+    return this.nextSibling(nextSibling, tagOrCallback, immediateSiblingOnly);
   }
 };
 
