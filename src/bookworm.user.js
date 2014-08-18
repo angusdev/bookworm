@@ -1348,7 +1348,7 @@ function anobiiEditBookAddMoreDate() {
         if (target.className === ANOBII_EDIT_BOOK_MOREDATE_CLASS) {
           var datediff = parseInt(target.getAttribute(ANOBII_EDIT_BOOK_MOREDATE_ATTR), 10);
           if (!isNaN(datediff)) {
-            var parentDiv = utils.parent(target, function() { return this.className === 'datePickerSet'; });
+            var parentDiv = utils.parent(target, function() { return utils.hasClass(this, 'datePickerSet'); });
             if (parentDiv) {
               var dates = parentDiv.getElementsByTagName('select');
               if (dates && dates.length === 3) {
