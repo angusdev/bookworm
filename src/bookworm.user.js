@@ -1566,13 +1566,12 @@ function addAnobiiLink(ele, showCover) {
 
               obj = obj[0];
               var bookId = obj.resultFinal[0].encryptItemId;
-              var anobiiBookURL = 'http://www.anobii.com/books/' + bookId;
-              ele.innerHTML = '<a href="' + anobiiBookURL + '" target="_blank">' +
+              ele.innerHTML = '<a href="http://www.anobii.com/" target="_blank">' +
                               (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
                               ele.textContent.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
                               (showCover?'margin-top:5px;':'') +
                               '"/>';
-              addAnobiiRating(ele, bookId, anobiiBookURL);
+              addAnobiiRating(ele, bookId);
             }
           }
           catch (err) {
@@ -1584,7 +1583,7 @@ function addAnobiiLink(ele, showCover) {
   }
 }
 
-function addAnobiiRating(ele, bookId, anobiiBookURL) {
+function addAnobiiRating(ele, bookId) {
   var loading = document.createElement('img');
   loading.src = LOADING_IMG;
   loading.setAttribute('style', 'vertical-align:middle;margin-left:5px;');
@@ -1598,6 +1597,15 @@ function addAnobiiRating(ele, bookId, anobiiBookURL) {
         var obj = utils.parseJSON(t.responseText);
         if (obj && obj.length > 0) {
           obj = obj[0];
+          var isbn = obj.bookDetail['isbn-13'] || obj.bookDetail['isbn-10'];
+          var anobiiBookURL = 'http://www.anobii.com/books/' + isbn + '/' + bookId;
+          var a = ele.getElementsByTagName('a');
+          if (a && a.length > 0) {
+            for (var ai=0 ; ai<a.length ; ai++) {
+              a[ai].href = anobiiBookURL;
+            }
+          }
+
           if (obj.totalOwner > 0) {
             var rateInt = parseInt(obj.averageRate, 10);
             var ratePtFive = (obj.averageRate == rateInt)?0:1;
