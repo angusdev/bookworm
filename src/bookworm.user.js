@@ -60,9 +60,9 @@ var xpath = org.ellab.utils.xpath;
 var xpathl = org.ellab.utils.xpathl;
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
 
-var ANOBII_LANG_EN = 1;
-var ANOBII_LANG_TC = 2;
-var ANOBII_LANG_SC = 3;
+var ANOBII_LANG_EN = 'en';
+var ANOBII_LANG_TC = 'zh-TW';
+var ANOBII_LANG_SC = 'zh-CN';
 var LANG_EN = 0;
 var LANG_TC = 1;
 var LANG_SC = 2;
@@ -83,6 +83,7 @@ LANG['SEARCH_BOOKS_TW'] = ['Search 博客來', '搜尋博客來', '搜寻博客�
 LANG['ERROR'] = ['Error', '錯誤', '错误'];
 LANG['UNKNOWN'] = ['Error', '錯誤', '错误'];
 
+LANG['ANOBII_EDIT_BOOK_MOREDATE_0'] = ['Today', '今天', '今天'];
 LANG['ANOBII_EDIT_BOOK_MOREDATE_1'] = ['Yesterday', '昨天', '昨天'];
 LANG['ANOBII_EDIT_BOOK_MOREDATE_2'] = ['2 days ago', '前天', '前天'];
 
@@ -268,7 +269,7 @@ function parseDateYYYYMMDDHHMMSS(str) {
 
 function processBookList() {
   g_displayMode = DISPLAY_BOOK;
-  var res = xpathl("//div[@id='product_info']/div[@class='info']/h1[@class='title']");
+  var res = xpathl("//div[@class='bookData bookDataRight']/h1");
   if (res.snapshotLength === 0) {
     res = xpathl("//table[@class='simple_list_view_container']//td[@class='title']//a");
     if (res.snapshotLength > 0) {
@@ -1328,6 +1329,7 @@ function anobiiEditBookAddMoreDate() {
     var observer = new MutationObserver(function(mutations, observer) {
       xpathl('//a[@class="starton_today" or @class="gotthison_today"]').each(function() {
         var buttonSet = [
+          { label: 'ANOBII_EDIT_BOOK_MOREDATE_0', datediff: 0 },
           { label: 'ANOBII_EDIT_BOOK_MOREDATE_1', datediff: -1 },
           { label: 'ANOBII_EDIT_BOOK_MOREDATE_2', datediff: -2 }
         ];
@@ -1340,6 +1342,9 @@ function anobiiEditBookAddMoreDate() {
           a.href = '#';
           this.parentNode.insertBefore(a, this.nextSibling);
         }
+
+        // remove the existing today button, which doesn't work
+        this.parentNode.removeChild(this);
       });
 
       div.addEventListener('click', function(e) {
@@ -1837,15 +1842,18 @@ else {
 if (/anobii\.com/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_ANOBII;
   ///g_anobiiLanguage = documen
-  var anobiilang = xpath('//select[@id="language_select"]/option[@selected]/@value').value;
-  if (anobiilang == ANOBII_LANG_TC) {
-    g_lang = LANG_TC;
-  }
-  else if (anobiilang == ANOBII_LANG_SC) {
-    g_lang = LANG_SC;
-  }
-  else {
-    g_lang = LANG_EN;
+  var anobiilang = xpath('//select[@name="languageId"]/option[@selected]/@value');
+  if (anobiilang) {
+    anobiilang = anobiilang.value;
+    if (anobiilang == ANOBII_LANG_TC) {
+      g_lang = LANG_TC;
+    }
+    else if (anobiilang == ANOBII_LANG_SC) {
+      g_lang = LANG_SC;
+    }
+    else if (anobiilang == ANOBII_LANG_EN) {
+      g_lang = LANG_EN;
+    }
   }
   DEBUG('Anobii lang=' + g_lang);
 

@@ -1,4 +1,6 @@
 .bookworm-search-addinfo { clear:both; float:right; }
+/* Book View */
+.bookData.bookDataRight .bookworm-search-book-link, .bookData.bookDataRight .bookworm-search-addinfo { font-size: 13px; }
 .gallery_view .shelf dl { padding-bottom:0 !important; }
 .gallery_view .bookworm-search-book-link { display:block; background:none; padding-left:0; float:none; }
 .bookworm-supersearch-link.subtitle a:link { color:black; }
