@@ -202,7 +202,7 @@ var SEARCH_RESULT_NOTFOUND = 3;
 var SEARCH_RESULT_ERROR = 4;
 
 function DEBUG(msg) {
-  //if (typeof unsafeWindow != 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
+  //if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
@@ -997,7 +997,7 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
 }
 
 function anobiiAddDoubanComments_onload(review, apiurl, allEditionCount) {
-  DEBUG('anobiiAddDoubanComments_onload');
+  DEBUG('anobiiAddDoubanComments_onload allEditionCount=' + allEditionCount);
 
   var totalResult = review['opensearch:totalResults']['$t'];
 
@@ -1916,4 +1916,3 @@ else if (/\/\/book\.douban\.com\/subject\/\d+/.test(document.location.href)) {
 }
 
 })();
-
