@@ -201,6 +201,8 @@ var SEARCH_RESULT_MULTI = 2;
 var SEARCH_RESULT_NOTFOUND = 3;
 var SEARCH_RESULT_ERROR = 4;
 
+var SUPER_SEARCH_WORD_COUNT = 20; // since chrome won't wrap on <a><a><a>, we need to stop the super search after serveral words
+
 function DEBUG(msg) {
   //if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
@@ -415,7 +417,7 @@ function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
 
   var superSearchHTML = '';
   for (var j=0; j<superSearchWords.length; j++) {
-    if (/^\s+$/.test(superSearchWords[j])) {
+    if (j>SUPER_SEARCH_WORD_COUNT || /^\s+$/.test(superSearchWords[j])) {
       // space, no link
       superSearchHTML += superSearchWords[j];
     }
@@ -423,7 +425,17 @@ function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
       superSearchHTML += '<a id="'+ SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + (superSearchStartId + j) +'" href="javascript:void(0)">' + utils.encodeHTML(superSearchWords[j]) + '</a>';
     }
   }
-  ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
+  if (ele.tagName && ele.tagName.toUpperCase() === 'A') {
+    var span = document.createElement('span');
+    span.className = ele.className;
+    span.innerHTML = superSearchHTML;
+    ele.parentNode.insertBefore(span, ele);
+    ele.innerHTML = '';
+    ele.style.display = 'none';
+  }
+  else {
+    ele.innerHTML = ele.innerHTML.replace(bookName, superSearchHTML);
+  }
   for (var k=0; k<superSearchWords.length; k++) {
     var superSearch = document.getElementById(SUPER_SEARCH_LINK_ID_PREFIX + searchLinkId + '-' + (superSearchStartId + k));
     if (superSearch) {
