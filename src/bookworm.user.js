@@ -100,7 +100,7 @@ LANG['DOUBAN_REVIEW'] = ['Douban Review', '豆瓣評論', '豆瓣评论'];
 LANG['DOUBAN_HEADING'] = ['$1 Reviews', '$1 則評論', '$1 则评论'];
 LANG['DOUBAN_REVIEW_ALL_EDITION'] = ['$1 Reviews (all editions)', '$1 則評論(所有版本)', '$1 则评论(所有版本)'];
 LANG['DOUBAN_HELPFUL'] = ['$1 people find this helpful', '$1 個人認為這是很有幫助', '$1 个人认为这是很有帮助'];
-LANG['DOUBAN_MORE'] = [' ... (continue)', ' ...(繼續) ', ' ...(继续) '];
+LANG['DOUBAN_MORE'] = [' (continue)', ' (繼續) ', ' (继续) '];
 LANG['DOUBAN_COMMENT'] = [' ($1 feedbacks) ', ' ($1 個回應) ', ' ($1 个回应) '];
 LANG['DOUBAN_TIME'] = [' said on $1', '在 $1 說', '在 $1 说'];
 LANG['DOUBAN_COMMENT_PREV'] = ['← Previous', '← 前一頁', '← 前一页'];
@@ -337,18 +337,15 @@ function processBookList() {
       var isbn;
       switch (g_displayMode) {
         case DISPLAY_BOOK:
-          isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-13:"]');
-          if (!isbn) {
-            isbn = xpath('//div[@id="product_details"]//span[text()="ISBN-10:"]');
+          isbn = document.querySelectorAll('span[itemprop="isbn"]');
+          if (isbn && isbn.length > 0) {
+            extractISBN(isbn = isbn[isbn.length-1].textContent);
+          }
+          else {
+            isbn = null;
           }
           if (isbn) {
-            isbn = xpath('../strong', isbn);
-            if (isbn) {
-              isbn = extractISBN(isbn.textContent);
-              if (isbn) {
-                search.setAttribute(SEARCH_ISBN_ATTR, isbn);
-              }
-            }
+            search.setAttribute(SEARCH_ISBN_ATTR, isbn);
           }
           search.setAttribute('style', 'float:right; color:#6a0;');
           search.className += ' subtitle';
@@ -974,15 +971,15 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
     // follow Anobii comment HTML structure to simulate the UI
     var ulhtml =
       /*jshint multistr:true */
-      '<ul class="comment_block"> \
+      '<ul class="anobii-ugc-block comment_block"> \
         <li> \
-          <div class="comment_entry"> \
-            <div class="comment_entry_inner"> \
+          <div class="anobii-review-entry comment_entry"> \
+            <div class="anobii-review-bubble comment_entry_inner"> \
               <div class="comment_entry_content">' +
                 helpfulHTML +
                 ratingHTML +
-        '       <h4>' + entry['title']['$t'] + '</h4> \
-                <div class="comment_shorten"> \
+        '       <h4 class="ajax_review_title">' + entry['title']['$t'] + '</h4> \
+                <div class="comment_full ajax_review_full_content"> \
                   <p>' +
                     entry['summary']['$t'] +
                     '<a href="' + reviewLinks['alternate'] +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + reviewFullInfoURL + '">' +
@@ -991,6 +988,9 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
                 </div> \
               </div> \
               <div class="clear"></div> \
+            </div> \
+            <div class="anobii-review-bubble-end-container"> \
+              <div class="anobii-review-bubble-end"></div> \
             </div> \
           </div> \
           <p class="comment_details">' +
@@ -1017,6 +1017,10 @@ function anobiiAddDoubanComments_onload(review, apiurl, allEditionCount) {
   var doubanBookURL = doubanReviewURL.replace('/reviews', '');
 
   // store the list of review in a dummy div for tab switching
+  // TODO
+  //   this is for old layout only, which when click the tab it will replace the innerHTML with another hidden div
+  //   in new layout each tab has it's own div and just show/hide when clicking tab
+  //   so don't need to use the dummy div, directly create the div is enough
   var divDoubanReview = document.getElementById(DOUBAN_REVIEW_DIV_ID);
   if (!divDoubanReview) {
     divDoubanReview = document.createElement('div');
@@ -1042,9 +1046,9 @@ function anobiiAddDoubanComments_onload(review, apiurl, allEditionCount) {
                            lang('DOUBAN_REVIEW_ALL_EDITION').replace('$1', allEditionCount) + '</a></span>';
   }
 
-  divDoubanReview.innerHTML = '<h2 class="section_heading"><strong>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' </strong>' +
+  divDoubanReview.innerHTML = '<h4>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' ' +
                               allEditionCountHTML +
-                              '<span style="color:black;"> | </span><a href="' + doubanBookURL + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h2>';
+                              '<span style="color:black;"> | </span><a href="' + doubanBookURL + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h4>';
 
   divDoubanReview.innerHTML += anobiiAddDoubanComments_onload_toHTML(review);
   anobiiAddDoubanComments_pagination(review, divDoubanReview, apiurl);
@@ -1058,13 +1062,13 @@ function anobiiAddDoubanComments_createTab(review, allEditionCount) {
   DEBUG('anobiiAddDoubanComments_createTab');
 
   // existing anobii review tab
-  var lireview = xpath('//ul[@id="product_content_tabs"]/li[@ref="reviews"]');
+  var lireview = document.querySelector('div.book-tabs-container li[rel="review"]');
   if (!lireview) return false;
 
   var totalResult = parseInt(review['opensearch:totalResults']['$t'], 10);
 
   var liDoubanReview = document.createElement('li');
-  liDoubanReview.setAttribute('ref', DOUBAN_REVIEW_TAB_REF);
+  liDoubanReview.setAttribute('rel', DOUBAN_REVIEW_TAB_REF);
   if (!totalResult) {
     liDoubanReview.className = 'disabled';
   }
@@ -1075,6 +1079,16 @@ function anobiiAddDoubanComments_createTab(review, allEditionCount) {
     allEditionCountHTML = '/' + allEditionCount;
   }
   a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + allEditionCountHTML + ')</small>'):'');
+
+  var doubanTab = document.createElement('div');
+  doubanTab.className = 'ajax_ugc_container';
+  doubanTab.setAttribute('rel', DOUBAN_REVIEW_TAB_REF);
+  doubanTab.innerHTML =
+    '<div class="ajax_tab ajax_hide bookworm-douban-review book-tab" style="display: none;">' +
+    document.getElementById(DOUBAN_REVIEW_DIV_ID).innerHTML +
+    '</div>';
+  document.querySelector('div.book-tabs-container').appendChild(doubanTab);
+
   a.addEventListener('click', anobiiAddDoubanComments_onClickTab, false);
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
@@ -1083,27 +1097,24 @@ function anobiiAddDoubanComments_createTab(review, allEditionCount) {
 function anobiiAddDoubanComments_onClickTab(e) {
   // turn off the active tab
   var from;
-  var lis = document.getElementById('product_content_tabs').getElementsByTagName('li');
+  var lis = document.querySelectorAll('div.book-tabs-container li[rel]');
   for (var i=0 ; i<lis.length ; i++) {
     var thisli = lis[i];
     if (utils.hasClass(thisli, 'selected')) {
       utils.removeClass(thisli, 'selected');
-      from = thisli.getAttribute('ref');
+      from = thisli.getAttribute('rel');
     }
   }
   // make douban review tab active
-  var liDoubanReview = xpath('//li[@ref="' + DOUBAN_REVIEW_TAB_REF + '"]');
+  var liDoubanReview = document.querySelector('li[rel="' + DOUBAN_REVIEW_TAB_REF + '"]');
   if (liDoubanReview) {
     utils.addClass(liDoubanReview, 'selected');
   }
 
-  // call the anobii javascript switchTabContent
-  // switchTabContent will store the existing tab's HTML to a dummy DIV for restoring
-  // fake it that is not switched so it will only store the HTML and will not actually switch tab
-  utils.inject('switchTabContent("' + from + '", "' + from + '");');
-
-  // we do the HTML swapping here
-  document.getElementById('tab_content').innerHTML = '<div>' + document.getElementById(DOUBAN_REVIEW_DIV_ID).innerHTML + '</div>';
+  utils.each(document.querySelectorAll('.ajax_tab.book-tab'), function() {
+    this.style.display = 'none';
+  });
+  document.querySelector('.bookworm-douban-review').style.display = 'block';
 
   if (e) {
     e.stopPropagation();
@@ -1115,7 +1126,7 @@ function anobiiAddDoubanComments_onClickTab(e) {
 
 function anobiiAddDoubanComments_addClickEvent() {
   // single event listener to capture all 'More' link
-  document.getElementById('tab_content').addEventListener('click', function(e) {
+  document.querySelector('.bookworm-douban-review').addEventListener('click', function(e) {
     var target = e.target;
     if (target.tagName && target.tagName.toUpperCase() === 'A') {
       var fullinfourl = target.getAttribute(DOUBAN_REVIEW_FULLINFO_URL_ATTR);
