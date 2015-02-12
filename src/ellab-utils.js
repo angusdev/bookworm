@@ -159,7 +159,7 @@ org.ellab.utils.arr_first = function(arr) {
   else {
     return null;
   }
-}
+};
 
 org.ellab.utils.arr_last = function(arr) {
   if (Object.prototype.toString.call(arr) === '[object Array]' && arr.length > 0) {
@@ -168,7 +168,18 @@ org.ellab.utils.arr_last = function(arr) {
   else {
     return null;
   }
-}
+};
+
+org.ellab.utils.createDOM = function(obj) {
+  if (typeof obj === 'string') {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(obj, "text/html");
+    return doc;
+  }
+  else {
+    return obj;
+  }
+};
 
 // return the first element instead of an array if the selector is simply an id
 org.ellab.utils.sizzleSmart = function(selector, context, results, seed) {

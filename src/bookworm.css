@@ -20,3 +20,6 @@
 div.book-tabs-container ul.book-tabs {
   padding-left: 0;
 }
+.comment_full.ajax_review_full_content p {
+  font-size: 14px;
+}

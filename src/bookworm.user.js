@@ -161,10 +161,11 @@ var GET_SUGGESTION_BUTTON_ID = 'bookworm-get-suggestion-button';
 var SEARCH_ISBN_ATTR = 'bookworm-isbn';
 
 var DOUBAN_REVIEW_TAB_REF = 'douban-review'; // the ref='xxx' of the tab li
-var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review'; // div to store the douban review HTML for tab switching
-var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-douban-review-fullinfo'; // the attribute name to store the fullinfo review json url
+var DOUBAN_REVIEW_DIV_ID = 'bookworm-douban-review'; // div to store the douban review tab
+var DOUBAN_REVIEW_CONTENT_DIV_ID = 'bookworm-douban-review-content'; // div to store the douban review content (without control elements)
+var DOUBAN_REVIEW_FULLINFO_URL_ATTR = 'bookworm-douban-review-url'; // the attribute name to store the fullinfo review json url
 var DOUBAN_FEEDBACK_URL_ATTR = 'bookworm-douban-feedback-url'; // the attribute name to store the URL of feedback div
-var DOUBAN_REVIEW_API_URL_ATTR = 'bookworm-douban-review-api'; // the attribtue name to store the review json url
+var DOUBAN_REVIEW_PAGE_URL_ATTR = 'bookworm-douban-review-page-url'; // the attribtue name to store the url to the review page
 var DOUBAN_REVIEW_ALL_EDITION_ATTR = 'bookworm-douban-review-all-edition'; // the attribtue name to store the all edition review count
 
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
@@ -204,7 +205,7 @@ var SEARCH_RESULT_ERROR = 4;
 var SUPER_SEARCH_WORD_COUNT = 20; // since chrome won't wrap on <a><a><a>, we need to stop the super search after serveral words
 
 function DEBUG(msg) {
-  //if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
+  if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
@@ -886,29 +887,96 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
   }
 }
 
-function parseDoubanValue(data, k, v, defaultValue) {
-  var res;
-  var key = data[k];
-  if (key) {
-    if (v) {
-      res = key[v];
-    }
-    else {
-      // no v specified
-      res = key;
+function parseDoubanTime(s) {
+  if (s) {
+    // YYYY-MM-DD HH24:mm
+    var res = s.match(/^(\d{4})\-(\d{2})\-(\d{2})(\s(\d{2})\:(\d{2}))?$/);
+    if (res) {
+      var date = new Date(res[1], res[2] - 1, res[3]);
+      if (res[5]) {
+        date.setHours(res[5]);
+        date.setMinutes(res[6]);
+      }
     }
   }
 
-  return res || defaultValue;
+  return null;
 }
 
-function parseDoubanLinks(obj) {
-  var res = {};
-  for (var i=0 ; i<obj.length ; i++) {
-    res[obj[i]['@rel']] = obj[i]['@href'];
-  }
+function parseDoubanAllEditionReviews(t, url) {
+  var doc = utils.createDOM(t);
 
-  return res;
+  var title = doc.querySelector('title').innerHTML;
+  var count = title.match(/\((\d+)\)\s*$/);
+  count = count?parseInt(count[1], 10):0;
+  var currPage = doc.querySelector('.paginator .thispage');
+  currPage = currPage?parseInt(currPage.innerHTML, 10):1;
+  var totalPage = doc.querySelector('.paginator > a:nth-last-of-type(1)');
+  totalPage = totalPage?parseInt(totalPage.innerHTML, 10):1;
+  var pagesUrl = [];
+  utils.each(doc.querySelectorAll('.paginator > a'), function() {
+    pagesUrl[this.innerHTML] = this.getAttribute('href');
+  });
+  var prevPageUrl = doc.querySelector('.paginator link[rel="prev"]');
+  prevPageUrl = prevPageUrl?prevPageUrl.getAttribute('href'):null;
+  var nextPageUrl = doc.querySelector('.paginator link[rel="next"]');
+  nextPageUrl = nextPageUrl?nextPageUrl.getAttribute('href'):null;
+
+  var entries = [];
+
+  utils.each(doc.querySelectorAll('.article .ctsh'), function() {
+    var entry = {};
+
+    entry.author = {};
+    var authorName = this.querySelector('.ilst a');
+    if (authorName) {
+      entry.author.name = authorName.getAttribute('title');
+      entry.author.link = authorName.getAttribute('href');
+    }
+    var authorIcon = this.querySelector('.ilst img.pil');
+    if (authorIcon) {
+      entry.author.icon = authorIcon.getAttribute('src');
+    }
+    var rating = this.querySelector('.clst .user span:nth-child(2)');
+    if (rating && rating.className.match(/\d/)) {
+      entry.rating = parseInt(rating.className.match(/\d/)[0], 10);
+    }
+    entry.link = this.querySelector('h3 > a').getAttribute('href');
+    entry.apiLink = 'https://book.douban.com/j/review/' + entry.link.match(/review\/(\d+)/)[1] + '/fullinfo';
+    entry.subject = this.querySelector('h3 > a').innerHTML;
+    entry.summary = this.querySelector('.review-short > span').innerHTML;
+    var comment = this.querySelector('.review-short > a');
+    if (comment) {
+      comment = comment.textContent.match(/\d+/);
+      if (comment) {
+        entry.commentCount = parseInt(comment[0], 10);
+      }
+    }
+
+    entry.publishTime = parseDoubanTime(this.querySelector('.review-short .pl.clearfix > span > span').innerHTML);
+
+    entry.useful = 0;
+    entry.useless = 0;
+    var vote = this.querySelector('.review-short .pl.clearfix > span > span:nth-child(2)');
+    if (vote) {
+      vote = vote.innerHTML;
+      vote = vote.match(/(\d+)(\/(\d+))?/);
+      if (vote) {
+        entry.useful = parseInt(vote[1], 10);
+        if (vote[3]) {
+          entry.useless = parseInt(vote[3], 10) - entry.useful;
+        }
+      }
+    }
+
+    entries.push(entry);
+  });
+
+  doc = null;
+
+  return { url: url, count: count,
+           currPage: currPage, totalPage: totalPage, nextPageUrl: nextPageUrl, pagesUrl: pagesUrl,
+           entry: entries };
 }
 
 function anobiiAddDoubanComments_onload_toHTML(review) {
@@ -917,55 +985,36 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
   var html = '';
   for (var i=0 ; i<review.entry.length ; i++) {
     var entry = review.entry[i];
-    var authorLinks = parseDoubanLinks(entry.author.link);
     var authorIconHTML = '';
-    if (authorLinks['icon']) {
-       authorIconHTML = '<a href="' + authorLinks['alternate'] + '"><img height="24" width="24" src="' + authorLinks['icon'] + '"></a>';
-    }
-    DEBUG('Douban author link');
-    DEBUG(authorLinks);
-
-    // comment time
-    var reviewTime = null;
-    try {
-      reviewTime = new Date(Date.parse(entry['published']['$t']));
-    }
-    catch (err) {
-      DEBUG(err);
+    if (entry.author && entry.author.icon) {
+       authorIconHTML = '<a href="' + entry.author.link + '"><img height="24" width="24" src="' + entry.author.icon + '"></a>';
     }
 
     // rating
-    var rating = parseDoubanValue(entry, 'gd:rating', '@value', 0);
     var ratingHTML = '';
-    DEBUG('Douban rating=' + rating);
-    if (rating) {
-      for (var i_rating=0 ; i_rating < parseInt(rating, 10) ; i_rating++) {
+    DEBUG('Douban rating=' + entry.rating);
+    if (entry.rating) {
+      for (var i_rating=0 ; i_rating < entry.rating ; i_rating++) {
         ratingHTML += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif">';
       }
-      for (i_rating=0 ; i_rating < 5 - parseInt(rating, 10) ; i_rating++) {
+      for (i_rating=0 ; i_rating < 5 - entry.rating ; i_rating++) {
         ratingHTML += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif">';
       }
     }
 
     // useful / useless
-    var useful = parseDoubanValue(entry, 'db:votes', '@value', 0);
-    var useless = parseDoubanValue(entry, 'db:useless', '@value', 0);
+    DEBUG('Douban vote=' + entry.useful + ',' + entry.useless);
     var helpfulHTML = '';
-    if (useful + useless > 0) {
-      helpfulHTML = '<p class="helpful">' + lang('DOUBAN_HELPFUL').replace('$1', useful + '/' + (useful + useless)) + '</p>';
+    if (entry.useful + entry.useless > 0) {
+      helpfulHTML = '<p class="helpful">' + lang('DOUBAN_HELPFUL').replace('$1', entry.useful + '/' + (entry.useful + entry.useless)) + '</p>';
     }
 
-    // reviwe fullinfo url
-    var reviewLinks = parseDoubanLinks(entry.link);
-    var reviewFullInfoURL = reviewLinks['alternate'].replace('\/review\/', '/j/review/') + '/fullinfo';
-
     // comment count
-    var commentCount = parseDoubanValue(entry, 'db:comments', '@value', 0);
-    DEBUG('Douban comment=' + commentCount);
+    DEBUG('Douban comment=' + entry.commentCount);
     var commentCountHTML = '';
-    if (commentCount) {
-      commentCountHTML = ' | <a href="' + reviewLinks['alternate'] + '" class="feedbacks_link" target="_blank">' +
-                         lang('DOUBAN_COMMENT').replace('$1', commentCount) + '</a>';
+    if (entry.commentCount) {
+      commentCountHTML = ' | <a href="' + entry.link + '" class="feedbacks_link" target="_blank">' +
+                         lang('DOUBAN_COMMENT').replace('$1', entry.commentCount) + '</a>';
     }
 
     // follow Anobii comment HTML structure to simulate the UI
@@ -978,12 +1027,12 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
               <div class="comment_entry_content">' +
                 helpfulHTML +
                 ratingHTML +
-        '       <h4 class="ajax_review_title">' + entry['title']['$t'] + '</h4> \
+        '       <h4 class="ajax_review_title">' + entry.subject + '</h4> \
                 <div class="comment_full ajax_review_full_content"> \
                   <p>' +
-                    entry['summary']['$t'] +
-                    '<a href="' + reviewLinks['alternate'] +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + reviewFullInfoURL + '">' +
-                    lang('DOUBAN_MORE').replace('$1', parseDoubanValue(entry, 'db:comments', '@value', 0)) + '</a>' +
+                    entry.summary +
+                    '<a href="' + entry.link +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + entry.apiLink + '">' +
+                    lang('DOUBAN_MORE').replace('$1', entry.commentCount) + '</a>' +
         '         </p> \
                 </div> \
               </div> \
@@ -995,8 +1044,8 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
           </div> \
           <p class="comment_details">' +
             authorIconHTML +
-        '   <a href="' + authorLinks['alternate'] + '">' + entry['author']['name']['$t'] + '</a>' +
-            lang('DOUBAN_TIME').replace('$1', formatAnobiiDate(reviewTime)) +
+        '   <a href="' + entry.author.link + '">' + entry.author.name + '</a>' +
+            lang('DOUBAN_TIME').replace('$1', formatAnobiiDate(entry.publishTime)) +
             commentCountHTML +
         ' </p> \
         </li> \
@@ -1008,55 +1057,18 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
   return html;
 }
 
-function anobiiAddDoubanComments_onload(review, apiurl, allEditionCount) {
-  DEBUG('anobiiAddDoubanComments_onload allEditionCount=' + allEditionCount);
+function anobiiAddDoubanComments_onload(book, review) {
+  DEBUG('anobiiAddDoubanComments_onload count=' + review.count);
 
-  var totalResult = review['opensearch:totalResults']['$t'];
+  anobiiAddDoubanComments_createTab(book, review);
 
-  var doubanReviewURL = parseDoubanLinks(review['link'])['alternate'];
-  var doubanBookURL = doubanReviewURL.replace('/reviews', '');
-
-  // store the list of review in a dummy div for tab switching
-  // TODO
-  //   this is for old layout only, which when click the tab it will replace the innerHTML with another hidden div
-  //   in new layout each tab has it's own div and just show/hide when clicking tab
-  //   so don't need to use the dummy div, directly create the div is enough
-  var divDoubanReview = document.getElementById(DOUBAN_REVIEW_DIV_ID);
-  if (!divDoubanReview) {
-    divDoubanReview = document.createElement('div');
-    divDoubanReview.style.display = 'none';
-    divDoubanReview.setAttribute('id', DOUBAN_REVIEW_DIV_ID);
-    document.body.appendChild(divDoubanReview);
-  }
-
-  if (typeof(allEditionCount) === 'undefined') {
-    allEditionCount = xpath('//a[@' + DOUBAN_REVIEW_ALL_EDITION_ATTR + ']/@' + DOUBAN_REVIEW_ALL_EDITION_ATTR);
-    if (allEditionCount) {
-      allEditionCount = parseInt(allEditionCount.value, 10);
-    }
-    else {
-      allEditionCount = 0;
-    }
-    DEBUG('get allEditionCount from dom=' + allEditionCount);
-  }
-
-  var allEditionCountHTML = '';
-  if (allEditionCount != totalResult && allEditionCount > 0) {
-    allEditionCountHTML =  '<span style="color:black;"> | </span><a href="' + doubanReviewURL + '" ' + DOUBAN_REVIEW_ALL_EDITION_ATTR + '="' + allEditionCount + '" target="_blank">' +
-                           lang('DOUBAN_REVIEW_ALL_EDITION').replace('$1', allEditionCount) + '</a></span>';
-  }
-
-  divDoubanReview.innerHTML = '<h4>' + lang('DOUBAN_HEADING').replace('$1', totalResult) + ' ' +
-                              allEditionCountHTML +
-                              '<span style="color:black;"> | </span><a href="' + doubanBookURL + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h4>';
-
-  divDoubanReview.innerHTML += anobiiAddDoubanComments_onload_toHTML(review);
-  anobiiAddDoubanComments_pagination(review, divDoubanReview, apiurl);
+  document.getElementById(DOUBAN_REVIEW_CONTENT_DIV_ID).innerHTML = anobiiAddDoubanComments_onload_toHTML(review);
+  anobiiAddDoubanComments_pagination(review);
 
   return true;
 }
 
-function anobiiAddDoubanComments_createTab(review, allEditionCount) {
+function anobiiAddDoubanComments_createTab(book, review) {
   // create the Douban review tab
 
   DEBUG('anobiiAddDoubanComments_createTab');
@@ -1065,7 +1077,7 @@ function anobiiAddDoubanComments_createTab(review, allEditionCount) {
   var lireview = document.querySelector('div.book-tabs-container li[rel="review"]');
   if (!lireview) return false;
 
-  var totalResult = parseInt(review['opensearch:totalResults']['$t'], 10);
+  var totalResult = parseInt(review.count, 10);
 
   var liDoubanReview = document.createElement('li');
   liDoubanReview.setAttribute('rel', DOUBAN_REVIEW_TAB_REF);
@@ -1074,21 +1086,20 @@ function anobiiAddDoubanComments_createTab(review, allEditionCount) {
   }
   var a = document.createElement('a');
   a.href = '#';
-  var allEditionCountHTML = '';
-  if (allEditionCount != totalResult && allEditionCount > 0) {
-    allEditionCountHTML = '/' + allEditionCount;
-  }
-  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + allEditionCountHTML + ')</small>'):'');
+  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + ')</small>'):'');
 
   var doubanTab = document.createElement('div');
   doubanTab.className = 'ajax_ugc_container';
   doubanTab.setAttribute('rel', DOUBAN_REVIEW_TAB_REF);
   doubanTab.innerHTML =
     '<div class="ajax_tab ajax_hide bookworm-douban-review book-tab" style="display: none;">' +
-    document.getElementById(DOUBAN_REVIEW_DIV_ID).innerHTML +
+      '<div id="' + DOUBAN_REVIEW_DIV_ID + '">' + 
+        '<h4>' + lang('DOUBAN_HEADING').replace('$1', review.count) +
+        '<span style="color:black;"> | </span><a href="' + book.alt + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h4>' +
+      '</div>' +
+      '<div id="' + DOUBAN_REVIEW_CONTENT_DIV_ID + '"></div>' +
     '</div>';
   document.querySelector('div.book-tabs-container').appendChild(doubanTab);
-
   a.addEventListener('click', anobiiAddDoubanComments_onClickTab, false);
   liDoubanReview.appendChild(a);
   lireview.parentNode.insertBefore(liDoubanReview, lireview.nextSibling);
@@ -1130,7 +1141,7 @@ function anobiiAddDoubanComments_addClickEvent() {
     var target = e.target;
     if (target.tagName && target.tagName.toUpperCase() === 'A') {
       var fullinfourl = target.getAttribute(DOUBAN_REVIEW_FULLINFO_URL_ATTR);
-      var reviewapiurl = target.getAttribute(DOUBAN_REVIEW_API_URL_ATTR);
+      var reviewpageurl = target.getAttribute(DOUBAN_REVIEW_PAGE_URL_ATTR);
       if (fullinfourl) {
         // Full review info, call the json api to display content
 
@@ -1151,6 +1162,7 @@ function anobiiAddDoubanComments_addClickEvent() {
             }
             catch (err) {
               e.target.innerHTML = lang('ERROR');
+              imgFullInfo.parentNode.removeChild(imgFullInfo);
             }
           }
         });
@@ -1158,7 +1170,7 @@ function anobiiAddDoubanComments_addClickEvent() {
         e.preventDefault();
         return false;
       }
-      else if (reviewapiurl) {
+      else if (reviewpageurl) {
         // Paging
 
         // the loading img will be remove by below innerHTML replace
@@ -1168,21 +1180,24 @@ function anobiiAddDoubanComments_addClickEvent() {
 
         utils.crossOriginXMLHttpRequest({
           method: 'GET',
-          url: reviewapiurl,
+          url: reviewpageurl,
           onload: function(t) {
             try {
-              var reviewJSON = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
-              var review = utils.parseJSON(reviewJSON);
+              t = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
+              var review = parseDoubanAllEditionReviews(t, reviewpageurl);
               if (review) {
-                anobiiAddDoubanComments_onload(review, reviewapiurl);
+                document.getElementById(DOUBAN_REVIEW_CONTENT_DIV_ID).innerHTML = anobiiAddDoubanComments_onload_toHTML(review);
+                anobiiAddDoubanComments_pagination(review);
                 anobiiAddDoubanComments_onClickTab(); // simulate click the tab to reload the data
-                var top = utils.calcOffsetTop(document.getElementById('product_content_tabs'));
+                var top = utils.calcOffsetTop(document.querySelector('.book-tabs-container'));
                 var left = window.pageXOffset || document.documentElement.scrollLeft;
                 window.scrollTo(left, top - 10);
               }
             }
             catch (err) {
+              DEBUG(err);
               e.target.innerHTML = lang('ERROR');
+              imgPaging.parentNode.removeChild(imgPaging);
             }
           }
         });
@@ -1267,45 +1282,35 @@ function anobiiAddDoubanComments_addClickEvent() {
   }, true);
 }
 
-function anobiiAddDoubanComments_pagination(review, container, apiurl) {
-  var totalResult = review['opensearch:totalResults']['$t'];
-  var itemsPerPage = parseDoubanValue(review, 'opensearch:itemsPerPage', '$t', 0);
-  var startIndex = parseDoubanValue(review, 'opensearch:startIndex', '$t', 0);
-  DEBUG('anobiiAddDoubanComments_pagination totalResult=' + totalResult + ', itemsPerPage=' + itemsPerPage + ', startIndex=' + startIndex);
+function anobiiAddDoubanComments_pagination(review) {
+  DEBUG('anobiiAddDoubanComments_pagination currPage=' + review.currPage + ', totalPage=' + review.totalPage);
   var html = '';
 
-  function makeAPIURL(page) {
-    return apiurl.replace(/&start\-index=\d*/, '') + '&start-index=' + ((page-1) * itemsPerPage + 1);
-  }
-
-  if (totalResult > itemsPerPage) {
-    var currPage = Math.ceil(startIndex / itemsPerPage);
-    var totalPage = Math.ceil(totalResult / itemsPerPage);
-    DEBUG('anobiiAddDoubanComments_pagination currPage=' + currPage);
-    for (var i=1 ; i<=totalPage ; i++) {
+  if (review.totalPage > 1) {
+    for (var i=1 ; i<=review.totalPage ; i++) {    
       var pageHTML = '';
-      if (i === currPage) {
-        pageHTML = '<span class="current">' + i + '</span>';
+      if (i === review.currPage) {
+        pageHTML = ' <span class="current">' + i + '</span>';
       }
       else {
-        pageHTML = '<a href="#" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(i) + '">' + i + '</a>';
+        pageHTML = ' <a href="#" ' + DOUBAN_REVIEW_PAGE_URL_ATTR + '="' + review.pagesUrl[i]+ '">' + i + '</a>';
       }
       html += pageHTML;
     }
 
     // totalPage must > 1
-    if (currPage > 1) {
-      html = '<a href="#" class="prev" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage - 1) + '">' + lang('DOUBAN_COMMENT_PREV') + '</a>' + html;
+    if (review.prevPageUrl) {
+      html = '<a href="#" class="prev" ' + DOUBAN_REVIEW_PAGE_URL_ATTR + '="' + review.prevPageUrl + '">' + lang('DOUBAN_COMMENT_PREV') + '</a>' + html;
     }
-    if (currPage != totalPage) {
-      html += '<a href="#" class="next" ' + DOUBAN_REVIEW_API_URL_ATTR + '="' + makeAPIURL(currPage + 1) + '">' + lang('DOUBAN_COMMENT_NEXT') + '</a>';
+    if (review.nextPageUrl) {
+      html += ' <a href="#" class="next" ' + DOUBAN_REVIEW_PAGE_URL_ATTR + '="' + review.nextPageUrl + '">' + lang('DOUBAN_COMMENT_NEXT') + '</a>';
     }
     html = '<p class="pagination_wrap">' + html + '</p>';
 
     var div = document.createElement('div');
     div.innerHTML = html;
 
-    container.appendChild(div);
+    document.getElementById(DOUBAN_REVIEW_CONTENT_DIV_ID).appendChild(div);
   }
 }
 
@@ -1314,26 +1319,22 @@ function anobiiAddDoubanComments(isbn) {
 
   if (!isbn) return;
 
-  var apiurl = 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=json';
+  //var apiurl = 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=json';
+  var apiurl = 'https://api.douban.com/v2/book/isbn/' + isbn;
   utils.crossOriginXMLHttpRequest({
     method: 'GET',
     url: apiurl,
     onload: function(t) {
       try {
-        var reviewJSON = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
-        var review = utils.parseJSON(reviewJSON);
-
+        var book = utils.parseJSON(t.responseText);
+        book.reviewUrl = 'http://book.douban.com/subject/' + book.id + '/reviews';
         utils.crossOriginXMLHttpRequest({
           method: 'GET',
-          url: parseDoubanLinks(review['link'])['alternate'],
+          url: book.reviewUrl,
           onload: function(t) {
-            var title = utils.extract(t.responseText, '<title>', '</title>');
-            if (title) {
-              title = title.match(/(\d+)\)\s*$/);
-            }
-            title = title?title[1]:0;
-            if (anobiiAddDoubanComments_onload(review, apiurl, title)) {
-              anobiiAddDoubanComments_createTab(review, title);
+            t = (g_options.translatetc && g_lang != LANG_SC)?toTrad(t.responseText):t.responseText;
+            var review = parseDoubanAllEditionReviews(t, book.reviewUrl);
+            if (anobiiAddDoubanComments_onload(book, review)) {
               anobiiAddDoubanComments_addClickEvent();
             }
           }
