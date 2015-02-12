@@ -23,3 +23,8 @@ div.book-tabs-container ul.book-tabs {
 .comment_full.ajax_review_full_content p {
   font-size: 14px;
 }
+.summary-like-comment .icon-like.icon-dislike {
+  transform: rotate(180deg);
+  margin-right: -8px;
+  margin-left: 5px;
+}

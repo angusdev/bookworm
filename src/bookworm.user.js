@@ -100,8 +100,7 @@ LANG['DOUBAN_REVIEW'] = ['Douban Review', '豆瓣評論', '豆瓣评论'];
 LANG['DOUBAN_HEADING'] = ['$1 Reviews', '$1 則評論', '$1 则评论'];
 LANG['DOUBAN_REVIEW_ALL_EDITION'] = ['$1 Reviews (all editions)', '$1 則評論(所有版本)', '$1 则评论(所有版本)'];
 LANG['DOUBAN_HELPFUL'] = ['$1 people find this helpful', '$1 個人認為這是很有幫助', '$1 个人认为这是很有帮助'];
-LANG['DOUBAN_MORE'] = [' (continue)', ' (繼續) ', ' (继续) '];
-LANG['DOUBAN_COMMENT'] = [' ($1 feedbacks) ', ' ($1 個回應) ', ' ($1 个回应) '];
+LANG['DOUBAN_MORE'] = ['(continue)', '(繼續) ', '(继续) '];
 LANG['DOUBAN_TIME'] = [' said on $1', '在 $1 說', '在 $1 说'];
 LANG['DOUBAN_COMMENT_PREV'] = ['← Previous', '← 前一頁', '← 前一页'];
 LANG['DOUBAN_COMMENT_NEXT'] = ['Next →', '後一頁 →', '后一页 →'];
@@ -945,6 +944,7 @@ function parseDoubanAllEditionReviews(t, url) {
     entry.apiLink = 'https://book.douban.com/j/review/' + entry.link.match(/review\/(\d+)/)[1] + '/fullinfo';
     entry.subject = this.querySelector('h3 > a').innerHTML;
     entry.summary = this.querySelector('.review-short > span').innerHTML;
+    entry.commentCount = 0;
     var comment = this.querySelector('.review-short > a');
     if (comment) {
       comment = comment.textContent.match(/\d+/);
@@ -987,7 +987,7 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
     var entry = review.entry[i];
     var authorIconHTML = '';
     if (entry.author && entry.author.icon) {
-       authorIconHTML = '<a href="' + entry.author.link + '"><img height="24" width="24" src="' + entry.author.icon + '"></a>';
+       authorIconHTML = '<a href="' + entry.author.link + '"><img height="36" width="36" src="' + entry.author.icon + '"></a>';
     }
 
     // rating
@@ -1009,12 +1009,12 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
       helpfulHTML = '<p class="helpful">' + lang('DOUBAN_HELPFUL').replace('$1', entry.useful + '/' + (entry.useful + entry.useless)) + '</p>';
     }
 
-    // comment count
+    // comment
     DEBUG('Douban comment=' + entry.commentCount);
-    var commentCountHTML = '';
+    var commentCountHTML = '<span class="icon-comment ajax_summary_like_comment ajax_processed"> </span>' +
+                           '<span class="ajax_ugc_comment_count"> ' + entry.commentCount + ' </span>';
     if (entry.commentCount) {
-      commentCountHTML = ' | <a href="' + entry.link + '" class="feedbacks_link" target="_blank">' +
-                         lang('DOUBAN_COMMENT').replace('$1', entry.commentCount) + '</a>';
+      commentCountHTML = '<a target="_blank" href="' + entry.link + '">' + commentCountHTML + '</a>';
     }
 
     // follow Anobii comment HTML structure to simulate the UI
@@ -1025,13 +1025,13 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
           <div class="anobii-review-entry comment_entry"> \
             <div class="anobii-review-bubble comment_entry_inner"> \
               <div class="comment_entry_content">' +
-                helpfulHTML +
+                //helpfulHTML +
                 ratingHTML +
         '       <h4 class="ajax_review_title">' + entry.subject + '</h4> \
                 <div class="comment_full ajax_review_full_content"> \
                   <p>' +
                     entry.summary +
-                    '<a href="' + entry.link +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + entry.apiLink + '">' +
+                    ' <a href="' + entry.link +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + entry.apiLink + '">' +
                     lang('DOUBAN_MORE').replace('$1', entry.commentCount) + '</a>' +
         '         </p> \
                 </div> \
@@ -1042,14 +1042,25 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
               <div class="anobii-review-bubble-end"></div> \
             </div> \
           </div> \
-          <p class="comment_details">' +
+          <p class="review-details">' +
             authorIconHTML +
         '   <a href="' + entry.author.link + '">' + entry.author.name + '</a>' +
             lang('DOUBAN_TIME').replace('$1', formatAnobiiDate(entry.publishTime)) +
-            commentCountHTML +
         ' </p> \
+          <div class="review-toolbar"> \
+            <div class="summary-like-comment" href="#"> \
+              <div class="ajax_icon_like icon-like-container ajax_processed"style="cursor: default;"> \
+                <span class="icon-like"></span> \
+                <span class="ajax_ugc_like_count"> ' + entry.useful + ' </span> \
+                <span class="icon-like icon-dislike"></span> \
+                <span class="ajax_ugc_like_count"> ' + entry.useless + ' </span> \
+              </div> ' +
+              commentCountHTML +
+        '   </div> \
+          </div> \
         </li> \
-      </ul>';
+      </ul> \
+      <div class="separator"></div>';
       /*jshint multistr:false */
     html += ulhtml;
   }
@@ -1086,14 +1097,14 @@ function anobiiAddDoubanComments_createTab(book, review) {
   }
   var a = document.createElement('a');
   a.href = '#';
-  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?(' <small>(' + totalResult + ')</small>'):'');
+  a.innerHTML = lang('DOUBAN_REVIEW') + (totalResult?('<small>(' + totalResult + ')</small>'):'');
 
   var doubanTab = document.createElement('div');
   doubanTab.className = 'ajax_ugc_container';
   doubanTab.setAttribute('rel', DOUBAN_REVIEW_TAB_REF);
   doubanTab.innerHTML =
     '<div class="ajax_tab ajax_hide bookworm-douban-review book-tab" style="display: none;">' +
-      '<div id="' + DOUBAN_REVIEW_DIV_ID + '">' + 
+      '<div id="' + DOUBAN_REVIEW_DIV_ID + '">' +
         '<h4>' + lang('DOUBAN_HEADING').replace('$1', review.count) +
         '<span style="color:black;"> | </span><a href="' + book.alt + '" target="_blank">' + lang('DOUBAN_PAGE') + '</a></h4>' +
       '</div>' +
@@ -1287,7 +1298,7 @@ function anobiiAddDoubanComments_pagination(review) {
   var html = '';
 
   if (review.totalPage > 1) {
-    for (var i=1 ; i<=review.totalPage ; i++) {    
+    for (var i=1 ; i<=review.totalPage ; i++) {
       var pageHTML = '';
       if (i === review.currPage) {
         pageHTML = ' <span class="current">' + i + '</span>';
