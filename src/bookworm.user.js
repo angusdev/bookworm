@@ -170,7 +170,7 @@ var DOUBAN_REVIEW_ALL_EDITION_ATTR = 'bookworm-douban-review-all-edition'; // th
 var LOADING_IMG = utils.getResourceURL('loading', 'loading.gif');
 
 var SESSION_ID_KEY = 'ellab-anobii-hkpl-session';
-var g_domainPrefix = 'http://webcat.hkpl.gov.hk';
+var g_domainPrefix = 'https://webcat.hkpl.gov.hk';
 var g_pageType = '';  // indicates which page is in, used by different function to show different presentations
 var g_loading = false;
 var g_options = {
@@ -1331,7 +1331,6 @@ function anobiiAddDoubanComments(isbn) {
 
   if (!isbn) return;
 
-  //var apiurl = 'http://api.douban.com/book/subject/isbn/' + isbn + '/reviews?alt=json';
   var apiurl = 'https://api.douban.com/v2/book/isbn/' + isbn;
   utils.crossOriginXMLHttpRequest({
     method: 'GET',
@@ -1339,7 +1338,7 @@ function anobiiAddDoubanComments(isbn) {
     onload: function(t) {
       try {
         var book = utils.parseJSON(t.responseText);
-        book.reviewUrl = 'http://book.douban.com/subject/' + book.id + '/reviews';
+        book.reviewUrl = 'https://book.douban.com/subject/' + book.id + '/reviews';
         utils.crossOriginXMLHttpRequest({
           method: 'GET',
           url: book.reviewUrl,
