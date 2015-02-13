@@ -896,6 +896,7 @@ function parseDoubanTime(s) {
         date.setHours(res[5]);
         date.setMinutes(res[6]);
       }
+      return date;
     }
   }
 
