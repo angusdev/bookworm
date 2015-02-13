@@ -1,6 +1,6 @@
 ﻿// ==UserScript==
 // @name           Bookworm
-// @version        5
+// @version        6
 // @namespace      http://ellab.org/
 // @description    Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library online catalogue in aNobii pages. Auto filling the Hong Kong Public Library Book Suggestion form with information from books.com.tw
 // @require        http://ellab-gm.googlecode.com/svn/tags/lib-utils-5/ellab-utils.js
@@ -20,33 +20,8 @@
 // ==/UserScript==
 
 /*
-Author: Angus http://angusdev.mysinablog.com/
-              http://angusdev.blogspot.com/
-              http://twitter.com/angusdev
-Date:   2012-09-18
-
-Version history:
-5    18-Sep-2012    Issue #29 Search by subtitle
-                    Issue #30 Cross check HKPL ISBN to avoid displaying the result of another book with same book name
-                    Issue #36 HKPL 2012 Jan revamp
-                    Issue #37 Upgrade to Chrome Manifest version 2
-4    09-Apr-2011    Issue #22 Fix the bug of inconsistent style search books.com.tw link
-                    Issue #23 Fix the bug that show multiple search books.com.tw links
-                    Issue #24 Link from books.com.tw to anobii
-                    Issue #25 Display anobii rating in HKPL and Books.com.tw book detail page
-                    Issue #28 Fix the bug of duplicated search HKPL link in Chrome 12
-3    24-Mar-2011    Issue #8 Let user search partial book name if full name not found in hkpl
-                    Issue #9 Show prev/next page when multiple result has more than 1 page
-                    Issue #10 In HKPL search result, show list of libraries that has the book on shelf
-                    Issue #13 In HKPL book detail page, show link to anobii book page using ISBN
-                    Issue #17 Integrate HKPL book suggestion and books.com.tw for one click book suggestion
-                    Issue #19 Fix the bug that didn't show the search HKPL link if viewing others bookshelf in gallery mode
-                    Issue #20 Rename extension name to "Bookworm"
-                    Issue #21 Show link to search books.com.tw if not found in HKPL
-2    03-Mar-2010    Issue #3 Handle multiple results from hkpl
-                    Issue #4 Fix the bug that search books with punctuation in their name usually return no result from HKPL
-                    Issue #7 Fix the bug that search button does not show up in book detail page after anobii revamp
-1    10-Nov-2009    Initial release
+@angusdev
+http://angusdev.blogspot.com/
 */
 
 /*jshint devel:true */
@@ -204,7 +179,7 @@ var SEARCH_RESULT_ERROR = 4;
 var SUPER_SEARCH_WORD_COUNT = 20; // since chrome won't wrap on <a><a><a>, we need to stop the super search after serveral words
 
 function DEBUG(msg) {
-  if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
+  //if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
