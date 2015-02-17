@@ -344,6 +344,9 @@ function processBookList() {
           break;
         case DISPLAY_LIST:
           isbn = xpath('../../li[@class="isbn"]', ele);
+          if (!isbn) {
+            isbn = xpath('../../li[@class="details"]', ele);
+          }
           if (isbn) {
             isbn = extractISBN(isbn.textContent);
             if (isbn) {
