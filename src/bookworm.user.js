@@ -1843,6 +1843,7 @@ function doubanAddAnobiiLink() {
 }
 
 // main
+DEBUG('bookworm');
 
 // temp solution for Issue #28 Duplicated search HKPL link in Chrome 12
 if (typeof(document) != 'undefined' && document.body && document.body.getAttribute('bookworm-loaded')) {
@@ -1915,7 +1916,7 @@ else if (/suggestion\.html/.test(document.location.href)) {
 
   hkplSuggestion();
 }
-else if (/books\.com\.tw\/products\/\d+/.test(document.location.href)) {
+else if (/books\.com\.tw\/products\/[A-Z]*\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_BOOKS_TW_BOOK;
 
   booksTWAddHKPLSuggestionLink();
