@@ -749,7 +749,7 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
   if (searchResult.resultCount > 0) {
     if (searchParam.type == SEARCH_TYPE_ISBN) {
       // double verify the search term is originally search
-      var res = t.match(/<span class="searchValue" title=\"([0-9|xX]+)\">/);
+      var res = t.match(/<span class="searchValue">\s*<span title=\"([0-9|xX]+)\">/m);
       if (!res || !isEqualISBN(res[1], searchParam.isbn)) {
         // somehow it is redirect to another isbn
         forceNotFound = true;
