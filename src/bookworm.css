@@ -28,3 +28,11 @@ div.book-tabs-container ul.book-tabs {
   margin-right: -8px;
   margin-left: 5px;
 }
+
+/* Edit book view */
+#tagSuggest p a {
+  white-space: nowrap;
+}
+#tagSuggest p a.bookworm-tag-suggest {
+  background-color: #FFD392;
+}

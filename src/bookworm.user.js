@@ -1403,6 +1403,57 @@ function anobiiEditBookAddMoreDate() {
   }
 }
 
+
+function anobiiEditBookHighlightTag() {
+  var div = document.getElementById('edit_book_div');
+  if (div) {
+    var observer = new MutationObserver(function(mutations, observer) {
+      var tagCloud = document.getElementById('tag_own_part');
+      if (!tagCloud) {
+        return;
+      }
+
+      var tags = tagCloud.querySelectorAll('a');
+      var bookName = document.getElementById('bookTitle')?document.getElementById('bookTitle').textContent:null;
+      for (var i=0 ; i<tags.length ; i++) {
+        var suggest = false;
+
+        if (bookName &&　bookName.indexOf(tags[i].textContent) >= 0) {
+          tags[i].className += ' bookworm-tag-suggest';
+          continue;
+        }
+
+        var category = div.querySelectorAll('.paneContentSection li .categoryTop');        
+        for (var j=0 ; j<category.length ; j++) {
+          // if the category contains the tag name
+          if (category[j].textContent && category[j].textContent.indexOf(tags[i].textContent) >= 0) {
+            tags[i].className += ' bookworm-tag-suggest';
+            suggest = true;
+            break;
+          }
+        }
+
+        // if the category contains any word from tag name
+        for (var k=0 ; k<tags[i].textContent.length-1 ; k++) {
+          var word = tags[i].textContent.substring(k, k+2);
+          if (bookName &&　bookName.indexOf(word) >= 0) {
+            tags[i].className += ' bookworm-tag-suggest';
+            break;
+          }
+          for (j=0 ; !suggest && j<category.length ; j++) {
+            if (category[j].textContent && category[j].textContent.indexOf(word) >= 0) {
+              tags[i].className += ' bookworm-tag-suggest';
+              suggest = true;
+              break;
+            }
+          }
+        }
+      }
+    });
+    observer.observe(div, { childList: true });
+  }
+}
+
 function extractISBN(s) {
   var isbn = s.match(/\s*([0-9]{9,13}X?)/);
   if (isbn) {
@@ -1905,6 +1956,7 @@ if (/anobii\.com/.test(document.location.href)) {
   processBookList();
 
   anobiiEditBookAddMoreDate();
+  anobiiEditBookHighlightTag();
 }
 else if (/\/lib\/item\?id=chamo\:\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_BOOK;
