@@ -14,6 +14,7 @@
                   "http://www.anobii.com/*/books*", "http://www.anobii.com/*/wishlist*",
                   "http://www.anobii.com/search*", "http://www.anobii.com/contributors/*",
                   "http://www.anobii.com/tags/*", "http://www.anobii.com/news_neighbor*",
+                  "http://www.anobii.com/shelf_stat", "http://www.anobii.com/reading_stat",
                   "http://webcat.hkpl.gov.hk/*",
                   "https://webcat.hkpl.gov.hk/*",
                   "https://www.hkpl.gov.hk/tc/about-us/collection-develop/suggestion.html*",

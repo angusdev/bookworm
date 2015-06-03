@@ -62,6 +62,9 @@ LANG['ANOBII_EDIT_BOOK_MOREDATE_0'] = ['Today', '今天', '今天'];
 LANG['ANOBII_EDIT_BOOK_MOREDATE_1'] = ['Yesterday', '昨天', '昨天'];
 LANG['ANOBII_EDIT_BOOK_MOREDATE_2'] = ['2 days ago', '前天', '前天'];
 
+LANG['ANOBII_STAT_CHART'] = ['Chart', '圖表', '图表'];
+LANG['ANOBII_STAT_AVG_PAGE'] = ['Avg Page per Book', '平均頁數', '平均页数'];
+
 LANG['GET_SUGGESTION'] = '填寫內容';
 LANG['LOADING'] = ['Loading...', '載入中...', '载入中...'];
 LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
@@ -1423,7 +1426,7 @@ function anobiiEditBookHighlightTag() {
           continue;
         }
 
-        var category = div.querySelectorAll('.paneContentSection li .categoryTop');        
+        var category = div.querySelectorAll('.paneContentSection li .categoryTop');
         for (var j=0 ; j<category.length ; j++) {
           // if the category contains the tag name
           if (category[j].textContent && category[j].textContent.indexOf(tags[i].textContent) >= 0) {
@@ -1451,6 +1454,73 @@ function anobiiEditBookHighlightTag() {
       }
     });
     observer.observe(div, { childList: true });
+  }
+}
+
+function anobiiStat() {
+  var table = document.querySelectorAll('.help_table');
+
+  if (!table || table.length < 1) {
+    return;
+  }
+
+  // in shelf_stat, the reading stat table is the last one, in reading_stat, there is only 1 table
+  var tr = table[table.length -1].querySelectorAll('tr');
+  if (tr.length <= 1) {
+    return;
+  }
+
+  tr[0].innerHTML += '<th>' + lang('ANOBII_STAT_CHART') + '</th><th>' + lang('ANOBII_STAT_AVG_PAGE') + '</th>';
+
+  var projectFactor =
+    (new Date(new Date().getFullYear(), 11, 31).getTime() - new Date(new Date().getFullYear()-1, 11, 31).getTime()) /
+    (new Date().getTime() - new Date(new Date().getFullYear()-1, 11, 31).getTime());
+
+  var minBookCount = Number.MAX_SAFE_INTEGER, maxBookCount = 0, minPageCount = Number.MAX_SAFE_INTEGER, maxPageCount = 0;
+  for (var i=1 ; i<tr.length ; i++) {
+    var minMaxBookCount = parseInt(tr[i].querySelector('td:nth-child(2)').textContent, 10);
+    var minMaxPageCount = parseInt(tr[i].querySelector('td:nth-child(3)').textContent, 10);
+    if (i === 1) {
+      minMaxBookCount *= projectFactor;
+      minMaxPageCount *= projectFactor;
+    }
+    minBookCount = Math.min(minBookCount, minMaxBookCount);
+    maxBookCount = Math.max(maxBookCount, minMaxBookCount);
+    minPageCount = Math.min(minPageCount, minMaxPageCount);
+    maxPageCount = Math.max(maxPageCount, minMaxPageCount);
+  }
+
+  for (i=1 ; i<tr.length ; i++) {
+    var tdBookCount = tr[i].querySelector('td:nth-child(2)');
+    var tdPageCount = tr[i].querySelector('td:nth-child(3)');
+    var bookCount = parseInt(tdBookCount.textContent, 10);
+    var pageCount = parseInt(tdPageCount.textContent, 10);
+    var pageChartWidth = pageCount / maxPageCount * 90;
+    var bookChartWidth = bookCount / maxBookCount * 40;
+
+    if (i === 1) {
+      tdBookCount.innerHTML += ' (' + Math.round(bookCount * projectFactor, 0) + ')';
+      tdPageCount.innerHTML += ' (' + Math.round(pageCount * projectFactor, 0) + ')';
+    }
+
+    var tdChart = document.createElement('td');
+    tdChart.className = 'bookworm-anobii-stat-barchart-td';
+    tdChart.innerHTML = '';
+    tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-page" style="width: ' + pageChartWidth +
+                         '%;">&nbsp;</div>';
+    tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-book" style="width: ' + bookChartWidth +
+                         '%; margin-left:-' + pageChartWidth + '%;">&nbsp;</div>';
+    if (i === 1) {
+      var projectPageWidth = pageCount * projectFactor / maxPageCount * 90;
+      projectPageWidth -= Math.max(pageChartWidth, bookChartWidth);
+      tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-page-project" style="width: ' + projectPageWidth +
+                         '%;">&nbsp;</div>';
+    }
+    tr[i].appendChild(tdChart);
+
+    var tdAvg = document.createElement('td');
+    tdAvg.innerHTML = '' + Math.round(pageCount / bookCount, 0);
+    tr[i].appendChild(tdAvg);
   }
 }
 
@@ -1957,6 +2027,10 @@ if (/anobii\.com/.test(document.location.href)) {
 
   anobiiEditBookAddMoreDate();
   anobiiEditBookHighlightTag();
+
+  if (document.location.href.indexOf('/reading_stat' > 0) || document.location.href.indexOf('/shelf_stat' > 0)) {
+    anobiiStat();
+  }
 }
 else if (/\/lib\/item\?id=chamo\:\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_BOOK;

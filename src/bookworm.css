@@ -16,6 +16,32 @@
 .bookworm-moredate { margin-left:7px; }
 .bookworm-anobii-rating img { vertical-align: middle; }
 
+.page_shelf_stats .help_table th, .page_shelf_stats .help_table td  {
+  white-space: nowrap;
+}
+.page_shelf_stats .help_table td.bookworm-anobii-stat-barchart-td {
+  height: 1px; /* a hack so the inner div can fill up 100% */
+  padding: 0;
+  width: 30%;
+}
+.bookworm-anobii-stat-barchart-book {
+  background-color: rgba(220, 64, 64, 0.6);
+  float: left;
+  height: 100%;
+}
+.bookworm-anobii-stat-barchart-page {
+  background-color: rgb(176, 196, 222); /* LightSteelBlue */
+  float: left;
+  height: 100%;
+}
+.bookworm-anobii-stat-barchart-page-project {
+  background-color: rgba(176, 196, 222, 0.2); /*   */
+  border: 2px dashed rgb(176, 196, 222); /* LightSteelBlue */
+  border-left: none;
+  float: left;
+  height: 100%;
+}
+
 /* Book View, the tab will wrap if added douban review */
 div.book-tabs-container ul.book-tabs {
   padding-left: 0;
