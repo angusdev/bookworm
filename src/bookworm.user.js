@@ -688,7 +688,7 @@ function parseSearchHKPLResult(t) {
   }
 
   t = extract(t, '<div class="recordNumber">');
-  var booklink = t.match(/<a href=\"..(\/lib\/item\?id=chamo\:\d+&amp;theme=WEB)\".*>([^<]+)<\/a>/);
+  var booklink = t.match(/<a href=\"..(\/lib\/item\?id=chamo\:\d+&amp;[^"]*theme=WEB)\".*>([^<]+)<\/a>/);
 
   if (booklink) {
     bookURL = g_domainPrefix + booklink[1];
@@ -697,11 +697,11 @@ function parseSearchHKPLResult(t) {
 
   var availLocDiv = extract(t, '<div class="search-availability">', '</div>');
   if (availLocDiv) {
-    var availLocRes = availLocDiv.match(/<span class="availabilityLocation" dir="ltr">([^<]+)<\/span>\s*<span class="availabilityCount" dir="ltr">([^<]+)<\/span>/g);
+    var availLocRes = availLocDiv.match(/<span class="availabilityLocation" [^>]*dir="ltr">([^<]+)<\/span><\/a>\s*<span class="availabilityCount" dir="ltr">([^<]+)<\/span>/g);
     if (availLocRes) {
       onshelfLib = [];
       for (var i=0;i<availLocRes.length;i++) {
-        var library = availLocRes[i].match(/<span class="availabilityLocation" dir="ltr">([^<]+)<\/span>\s*<span class="availabilityCount" dir="ltr">([^<]+)<\/span>/);
+        var library = availLocRes[i].match(/<span class="availabilityLocation" [^>]*dir="ltr">([^<]+)<\/span><\/a>\s*<span class="availabilityCount" dir="ltr">([^<]+)<\/span>/);
         if (library) {
           var libname = library[1];
           var libcount = library[2].match(/\d+/);
