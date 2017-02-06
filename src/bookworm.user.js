@@ -905,29 +905,40 @@ function parseDoubanAllEditionReviews(t, url) {
 
   var entries = [];
 
-  utils.each(doc.querySelectorAll('.article .ctsh'), function() {
+  utils.each(doc.querySelectorAll('.review-list .review-item'), function() {
     var entry = {};
 
     entry.author = {};
-    var authorName = this.querySelector('.ilst a');
-    if (authorName) {
-      entry.author.name = authorName.getAttribute('title');
-      entry.author.link = authorName.getAttribute('href');
+    var author = this.querySelector('a.author');
+    if (author) {
+      entry.author.name = author.querySelector('span')?author.querySelector('span').innerHTML:'unknown';
+      entry.author.link = author.getAttribute('href');
     }
-    var authorIcon = this.querySelector('.ilst img.pil');
+    var authorIcon = this.querySelector('.author-avatar img');
     if (authorIcon) {
       entry.author.icon = authorIcon.getAttribute('src');
     }
-    var rating = this.querySelector('.clst .user span:nth-child(2)');
-    if (rating && rating.className.match(/\d/)) {
-      entry.rating = parseInt(rating.className.match(/\d/)[0], 10);
+    var rating = this.querySelector('.main-title-rating');
+    if (rating && rating.className.match(/allstar(\d+)/)) {
+      entry.rating = parseInt(rating.className.match(/allstar(\d+)/)[1], 10) / 10;
     }
     entry.link = this.querySelector('h3 > a').getAttribute('href');
     entry.apiLink = 'https://book.douban.com/j/review/' + entry.link.match(/review\/(\d+)/)[1] + '/fullinfo';
     entry.subject = this.querySelector('h3 > a').innerHTML;
-    entry.summary = this.querySelector('.review-short > span').innerHTML;
+    entry.summary = this.querySelector('.short-content');
+    if (entry.summary) {
+      // remove unwanted child elements
+      var toBeRemoved = ['.toggle_review', '.more-info'];
+      for (var i=0 ; i<toBeRemoved.length ; i++) {
+        var e = entry.summary.querySelector(toBeRemoved[i]);
+        if (e) {
+          entry.summary.removeChild(e);
+        }
+      }
+      entry.summary = entry.summary.innerHTML;
+    }
     entry.commentCount = 0;
-    var comment = this.querySelector('.review-short > a');
+    var comment = this.querySelector('.short-content > a');
     if (comment) {
       comment = comment.textContent.match(/\d+/);
       if (comment) {
@@ -935,18 +946,18 @@ function parseDoubanAllEditionReviews(t, url) {
       }
     }
 
-    entry.publishTime = parseDoubanTime(this.querySelector('.review-short .pl.clearfix > span > span').innerHTML);
+    entry.publishTime = parseDoubanTime(this.querySelector('span[property="v:dtreviewed"]').innerHTML);
 
     entry.useful = 0;
     entry.useless = 0;
-    var vote = this.querySelector('.review-short .pl.clearfix > span > span:nth-child(2)');
+    var vote = this.querySelector('.short-content .more-info.pl > span');
     if (vote) {
       vote = vote.innerHTML;
-      vote = vote.match(/(\d+)(\/(\d+))?/);
+      vote = vote.match(/(\d+)(.*(\d+))?/);
       if (vote) {
         entry.useful = parseInt(vote[1], 10);
         if (vote[3]) {
-          entry.useless = parseInt(vote[3], 10) - entry.useful;
+          entry.useless = parseInt(vote[3], 10);
         }
       }
     }
@@ -1010,7 +1021,7 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
                 //helpfulHTML +
                 ratingHTML +
         '       <h4 class="ajax_review_title">' + entry.subject + '</h4> \
-                <div class="comment_full ajax_review_full_content"> \
+                <div class="ajax_ugc_full"> \
                   <p>' +
                     entry.summary +
                     ' <a href="' + entry.link +'" target="_blank" class="continue" ' + DOUBAN_REVIEW_FULLINFO_URL_ATTR + '="' + entry.apiLink + '">' +
