@@ -1484,7 +1484,7 @@ function anobiiStat() {
 
   var projectFactor =
     (new Date(new Date().getFullYear(), 11, 31).getTime() - new Date(new Date().getFullYear()-1, 11, 31).getTime()) /
-    (new Date().getTime() - new Date(new Date().getFullYear()-1, 11, 31).getTime());
+    (new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime());
 
   var minBookCount = Number.MAX_SAFE_INTEGER, maxBookCount = 0, minPageCount = Number.MAX_SAFE_INTEGER, maxPageCount = 0;
   for (var i=1 ; i<tr.length ; i++) {
