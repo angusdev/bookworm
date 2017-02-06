@@ -43,10 +43,10 @@
 }
 
 /* Book View, the tab will wrap if added douban review */
-div.book-tabs-container ul.book-tabs {
-  padding-left: 0;
+.anobii-book-body .book-tabs li a {
+  margin-right: 5px !important;
 }
-.comment_full.ajax_review_full_content p {
+.anobii-review-entry.comment_entry .comment_shorten p, .anobii-review-entry.comment_entry .ajax_ugc_full p {
   font-size: 14px;
 }
 .summary-like-comment .icon-like.icon-dislike {
@@ -54,7 +54,6 @@ div.book-tabs-container ul.book-tabs {
   margin-right: -8px;
   margin-left: 5px;
 }
-
 /* Edit book view */
 #tagSuggest p a {
   white-space: nowrap;
