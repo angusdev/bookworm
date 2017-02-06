@@ -20,22 +20,26 @@
   white-space: nowrap;
 }
 .page_shelf_stats .help_table td.bookworm-anobii-stat-barchart-td {
-  height: 1px; /* a hack so the inner div can fill up 100% */
+  //height: 1px; /* a hack so the inner div can fill up 100% */
   padding: 0;
   width: 30%;
 }
-.bookworm-anobii-stat-barchart-book {
-  background-color: rgba(112, 177, 51, 0.6);
-  float: left;
-  height: 100%;
-}
 .bookworm-anobii-stat-barchart-page {
-  background-color: rgb(176, 196, 222); /* LightSteelBlue */
+  background-color: rgba(112, 177, 51, 0.6);
+  border-top: 2px solid rgba(112, 177, 51, 0.6);
+  border-bottom: 2px solid rgba(112, 177, 51, 0.6);
   float: left;
   height: 100%;
 }
-.bookworm-anobii-stat-barchart-page-project {
-  background-color: rgba(176, 196, 222, 0.2); /*   */
+.bookworm-anobii-stat-barchart-book {
+  background-color: rgb(176, 196, 222); /* LightSteelBlue */
+  border-top: 2px solid rgb(176, 196, 222);
+  border-bottom: 2px solid rgb(176, 196, 222);
+  float: left;
+  height: 100%;
+}
+.bookworm-anobii-stat-barchart-book-project {
+  background-color: rgba(176, 196, 222, 0.2);
   border: 2px dashed rgb(176, 196, 222); /* LightSteelBlue */
   border-left: none;
   float: left;

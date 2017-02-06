@@ -927,7 +927,6 @@ function parseDoubanAllEditionReviews(t, url) {
     entry.subject = this.querySelector('h3 > a').innerHTML;
     entry.summary = this.querySelector('.short-content');
     if (entry.summary) {
-      // remove unwanted child elements
       var toBeRemoved = ['.toggle_review', '.more-info'];
       for (var i=0 ; i<toBeRemoved.length ; i++) {
         var e = entry.summary.querySelector(toBeRemoved[i]);
@@ -1506,8 +1505,8 @@ function anobiiStat() {
     var tdPageCount = tr[i].querySelector('td:nth-child(3)');
     var bookCount = parseInt(tdBookCount.textContent, 10);
     var pageCount = parseInt(tdPageCount.textContent, 10);
-    var pageChartWidth = pageCount / maxPageCount * 90;
-    var bookChartWidth = bookCount / maxBookCount * 40;
+    var pageChartWidth = pageCount / maxPageCount * 40;
+    var bookChartWidth = bookCount / maxBookCount * 90;
 
     if (i === 1) {
       tdBookCount.innerHTML += ' (' + Math.round(bookCount * projectFactor, 0) + ')';
@@ -1517,14 +1516,14 @@ function anobiiStat() {
     var tdChart = document.createElement('td');
     tdChart.className = 'bookworm-anobii-stat-barchart-td';
     tdChart.innerHTML = '';
-    tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-page" style="width: ' + pageChartWidth +
-                         '%;">&nbsp;</div>';
     tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-book" style="width: ' + bookChartWidth +
-                         '%; margin-left:-' + pageChartWidth + '%;">&nbsp;</div>';
+                         '%;">&nbsp;</div>';
+    tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-page" style="width: ' + pageChartWidth +
+                         '%; margin-left:-' + bookChartWidth + '%;">&nbsp;</div>';
     if (i === 1) {
-      var projectPageWidth = pageCount * projectFactor / maxPageCount * 90;
-      projectPageWidth -= Math.max(pageChartWidth, bookChartWidth);
-      tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-page-project" style="width: ' + projectPageWidth +
+      var projectBookWidth = bookCount * projectFactor / maxBookCount * 90;
+      projectBookWidth -= Math.max(pageChartWidth, bookChartWidth);
+      tdChart.innerHTML += '<div class="bookworm-anobii-stat-barchart-book-project" style="width: ' + projectBookWidth +
                          '%;">&nbsp;</div>';
     }
     tr[i].appendChild(tdChart);
