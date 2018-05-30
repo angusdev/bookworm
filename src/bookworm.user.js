@@ -1670,26 +1670,36 @@ function booksTWAddAnobiiLink() {
 
   var res = xpath("//li/meta[@itemprop='productID' and contains(@content, 'isbn:')]");
   if (res) {
-    // find the appendTo element (the top right info box)
-    // div
-    //   div
-    //     h1[itemprop="name"] Book Name
-    //   div
-    //     ul
-    //       li authoer
-    //       li publisher
-    //       li ...
-    //       li <-- insert here
-    var bookname = xpath("//h1[@itemprop='name']");
-    if (bookname) {
-      var infobox = xpath("./ul", utils.nextSibling(bookname.parentNode, 'div'));
-      if (infobox) {
-        var isbn = res.getAttribute('content').match(/isbn\:(.*)/);
-        if (isbn) {
-          var li = document.createElement('li');
-          li.innerHTML = 'ISBN：<span>' + isbn[1] + '</span>';
-          infobox.appendChild(li);
-          addAnobiiLink(li.getElementsByTagName('span')[0], false);
+    var isbn = res.getAttribute('content').match(/isbn\:(.*)/);
+    if (isbn) {
+      // find the appendTo element (the top right info box)
+      // div[itemtype="http://schema.org/Product"]
+      //   div
+      //     div
+      //       div
+      //         h1[itemprop="name"] Book Name
+      //         h2 English Name
+      //   div
+      //     ul
+      //       li[itemprop="author"]
+      //       li original author
+      //       li translator
+      //       li publisher
+      //       li ...
+      //       li <-- insert here
+      var product = document.querySelector('div[itemtype="http://schema.org/Product"]');
+      if (product) {
+        var bookname = product.querySelector("h1[itemprop='name']");
+        var bookEngName = utils.nextSibling(bookname, 'h2');
+        var author = product.querySelector('li[itemprop="author"]');
+        if (bookname && author) {
+          var infobox = utils.parent(author, 'div');
+          if (infobox) {
+            var li = document.createElement('li');
+            li.innerHTML = 'ISBN：<span>' + isbn[1] + '</span>';
+            infobox.appendChild(li);
+            addAnobiiLink(li.getElementsByTagName('span')[0], false);
+          }
         }
       }
     }
