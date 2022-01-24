@@ -65,3 +65,9 @@
 #tagSuggest p a.bookworm-tag-suggest {
   background-color: #FFD392;
 }
+
+/* HKPL */
+[data-role="bookworm-hkpl-search-filter"][selected] {
+  font-weight: bold;
+  color: #FF934F;
+}

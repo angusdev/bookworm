@@ -227,21 +227,25 @@ org.ellab.utils.crossOriginXMLHttpRequest_GM = function(params) {
 // url
 // onload
 org.ellab.utils.crossOriginXMLHttpRequest_Chrome = function(params) {
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState == 4) {
-      if (xhr.status == 200) {
-        var response = {status:xhr.status, responseText:xhr.responseText};
-        if (params.onload) {
-          params.onload.call(this, response);
-        }
-      }
+  var inParams = null;
+  if (params.method || params.overrideMimeType) {
+    inParams = {};
+    if (params.method) {
+      inParams.method = params.method;
     }
-  };
-
-  xhr.open(params.method, params.url, true);
-  xhr.send();
-};
+    if (params.overrideMimeType) {
+      inParams.headers= { 'Content-Type': params.overrideMimeType }
+    }
+  }
+  chrome.runtime.sendMessage(
+    {contentScriptQuery: 'ajax', url: params.url, params: inParams},
+    text => {
+      if (params.onload) {
+        var response = {status:200, responseText:text};
+        params.onload.call(this, response);
+      }
+    });
+}
 
 org.ellab.utils.crossOriginXMLHttpRequest = function(params) {
   if (this.isChrome) {

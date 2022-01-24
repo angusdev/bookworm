@@ -1,13 +1,14 @@
 {
   "name": "Bookworm",
-  "version": "6",
-  "manifest_version": 2,
+  "version": "7",
+  "manifest_version": 3,
   "description": "Integrate aNobii, Hong Kong Public Library and books.com.tw. Features like searching Hong Kong Public Library in aNobii pages.",
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",
     "128": "icon-128.png"
   },
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["http://www.anobii.com/books/*", "http://www.anobii.com/wishlist*",
@@ -24,10 +25,14 @@
       "js": ["ellab-utils.js", "tongwen.js", "bookworm.user.js"]
     }
   ],
-  "minimum_chrome_version": "20",
+  "minimum_chrome_version": "73",
   "permissions": [
-    "http://webcat.hkpl.gov.hk/", "http://iapp2.anobii.com/", "http://www.books.com.tw/",
-    "http://www.douban.com/", "https://book.douban.com/", "https://api.douban.com/"
+    "https://webcat.hkpl.gov.hk/", "https://iapp2.anobii.com/", "https://www.books.com.tw/",
+    "https://www.douban.com/", "https://book.douban.com/", "https://api.douban.com/"
   ],
-  "web_accessible_resources": ["loading.gif", "shadowAlpha.png"]
+  "web_accessible_resources": [{
+    "resources": ["loading.gif", "shadowAlpha.png"],
+    "matches": [],
+    "extension_ids": []
+  }]
 }

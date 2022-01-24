@@ -35,6 +35,8 @@ var xpath = org.ellab.utils.xpath;
 var xpathl = org.ellab.utils.xpathl;
 var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
 
+var HKPL_SEARCH_THERSOLD = [2, 10, 20, 30, 50, 100];
+
 var ANOBII_LANG_EN = 'en';
 var ANOBII_LANG_TC = 'zh-TW';
 var ANOBII_LANG_SC = 'zh-CN';
@@ -69,6 +71,7 @@ LANG['GET_SUGGESTION'] = '填寫內容';
 LANG['LOADING'] = ['Loading...', '載入中...', '载入中...'];
 LANG['INVALID_SUGGESTION_URL'] = '不正確的 URL，只支援「博客來 http://www.books.com.tw」';
 
+LANG['HKPL_SEARCH'] = '搜尋預約';
 LANG['HKPL_SUGGESTION'] = '圖書館購書建議';
 
 LANG['ANOBII_RATING'] = ['Anobii Rating', 'aNobii 評級', 'aNobii 评级'];
@@ -158,9 +161,10 @@ var g_options = {
 
 var PAGE_TYPE_ANOBII = 1;
 var PAGE_TYPE_HKPL_BOOK = 2;
-var PAGE_TYPE_HKPL_SUGGESTION = 3;
-var PAGE_TYPE_BOOKS_TW_BOOK = 4;
-var PAGE_TYPE_DOUBAN_BOOK = 5;
+var PAGE_TYPE_HKPL_SEARCH = 3;
+var PAGE_TYPE_HKPL_SUGGESTION = 4;
+var PAGE_TYPE_BOOKS_TW_BOOK = 5;
+var PAGE_TYPE_DOUBAN_BOOK = 6;
 
 var DISPLAY_BOOK = 0;
 var DISPLAY_SIMPLE = 1;
@@ -182,7 +186,7 @@ var SEARCH_RESULT_ERROR = 4;
 var SUPER_SEARCH_WORD_COUNT = 20; // since chrome won't wrap on <a><a><a>, we need to stop the super search after serveral words
 
 function DEBUG(msg) {
-  //if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
+  if (typeof unsafeWindow !== 'undefined' && unsafeWindow.console && unsafeWindow.console.log) unsafeWindow.console.log(msg); else if (typeof console != 'undefined' && console.log) console.log(msg);
 }
 
 function decimalToHex(d, padding) {
@@ -248,15 +252,15 @@ function parseDateYYYYMMDDHHMMSS(str) {
 }
 
 function processBookList() {
-  g_displayMode = DISPLAY_BOOK;
-  var res = xpathl("//div[@class='bookData bookDataRight']/h1");
+  g_displayMode = -1;
+  var res = xpathl("//h1[@itemprop='name']");
   if (res.snapshotLength === 0) {
     res = xpathl("//table[@class='simple_list_view_container']//td[@class='title']//a");
     if (res.snapshotLength > 0) {
       g_displayMode = DISPLAY_SIMPLE;
     }
     else {
-      res = xpathl("//ul[@class='item_text']//li[@class='title']//a");
+      res = xpathl("//div[@class='media']//a[@class='media-left']");
       if (res.snapshotLength > 0) {
         g_displayMode = DISPLAY_LIST;
       }
@@ -275,8 +279,13 @@ function processBookList() {
       }
     }
   }
+  else {
+    g_displayMode = DISPLAY_BOOK;
+  }
 
-  DEBUG('g_displayMode=' + g_displayMode);
+  if (g_displayMode >= 0) {
+    DEBUG('g_displayMode=' + g_displayMode);
+  }
 
   for (var i=0; i<res.snapshotLength; i++) {
     var ele = res.snapshotItem(i);
@@ -315,9 +324,9 @@ function processBookList() {
       var isbn;
       switch (g_displayMode) {
         case DISPLAY_BOOK:
-          isbn = document.querySelectorAll('span[itemprop="isbn"]');
+          isbn = document.querySelectorAll('li[itemprop="isbn"]');
           if (isbn && isbn.length > 0) {
-            extractISBN(isbn = isbn[isbn.length-1].textContent);
+            isbn = extractISBN(isbn[isbn.length-1].textContent);
           }
           else {
             isbn = null;
@@ -325,7 +334,7 @@ function processBookList() {
           if (isbn) {
             search.setAttribute(SEARCH_ISBN_ATTR, isbn);
           }
-          search.setAttribute('style', 'float:right; color:#6a0;');
+          search.setAttribute('style', 'float:right; font-size: 14pt;');
           search.className += ' subtitle';
           ele.appendChild(search);
 
@@ -368,6 +377,8 @@ function processBookList() {
       search = null;
     }
   }
+
+  window.setTimeout(processBookList, 1000);
 }
 
 function buildSuperSearch(ele, bookName, searchLinkId, superSearchStartId) {
@@ -784,7 +795,7 @@ function onLoadSearchHKPL(searchLink, t, url, searchParam, bookName) {
       a.className = searchLink.className + ' ' + SEARCH_ADDINFO_CLASS + ' ' + SEARCH_ADDINFO_BOOKS_TW_CLASS;
       a.addEventListener('click', function(e) {
         var form = document.createElement('form');
-        form.action = 'http://search.books.com.tw/exep/prod_search.php';
+        form.action = 'https://search.books.com.tw/exep/prod_search.php';
         form.method = 'get';
         form.target = '_blank';
         var hidden = document.createElement('input');
@@ -987,10 +998,10 @@ function anobiiAddDoubanComments_onload_toHTML(review) {
     DEBUG('Douban rating=' + entry.rating);
     if (entry.rating) {
       for (var i_rating=0 ; i_rating < entry.rating ; i_rating++) {
-        ratingHTML += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif">';
+        ratingHTML += '<img src="https://static.anobii.com/anobi/live/image/star_self_1.gif">';
       }
       for (i_rating=0 ; i_rating < 5 - entry.rating ; i_rating++) {
-        ratingHTML += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif">';
+        ratingHTML += '<img src="https://static.anobii.com/anobi/live/image/star_self_0.gif">';
       }
     }
 
@@ -1237,7 +1248,7 @@ function anobiiAddDoubanComments_addClickEvent() {
               while (feedback) {
                 feedback = utils.extract(feedback, '', '<div class="align-right">');
                 feedback = (g_options.translatetc && g_lang != LANG_SC)?toTrad(feedback):feedback;
-                // <h3 ...><span class="pl">[time]<a href="http://www.douban.com/people/[id]/">[name]</a></span></h3>
+                // <h3 ...><span class="pl">[time]<a href="https://www.douban.com/people/[id]/">[name]</a></span></h3>
                 var feedbackSenderLine = utils.extract(feedback, '<h3', '</h3>');
                 feedbackSenderLine = feedbackSenderLine.replace(/^[^>]*>/, '').replace('class="pl"', '');
                 var feedbackTime = parseDateYYYYMMDDHHMMSS(feedbackSenderLine);
@@ -1535,7 +1546,7 @@ function anobiiStat() {
 }
 
 function extractISBN(s) {
-  var isbn = s.match(/\s*([0-9]{9,13}X?)/);
+  var isbn = s.match(/([0-9]{9,13}X?)\s*$/);
   if (isbn) {
     isbn = isbn[1];
     if (isValidISBN(isbn)) {
@@ -1715,7 +1726,7 @@ function addAnobiiLink(ele, showCover) {
     ele.appendChild(loading);
     utils.crossOriginXMLHttpRequest({
       method: 'GET',
-      url: 'http://iapp2.anobii.com/InternalAPI/html/iapp2/search/search-book?keyword=' + isbn + '&page=1&itemPerPage=1',
+      url: 'https://iapp2.anobii.com/InternalAPI/html/iapp2/search/search-book?keyword=' + isbn + '&page=1&itemPerPage=1',
       onload: function(t) {
         ele.removeChild(loading);
         if (t.status == 200) {
@@ -1725,9 +1736,9 @@ function addAnobiiLink(ele, showCover) {
 
               obj = obj[0];
               var bookId = obj.resultFinal[0].encryptItemId;
-              ele.innerHTML = '<a href="http://www.anobii.com/" target="_blank">' +
-                              (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('type=1', 'type=3') + '"/><br/>':'') +
-                              ele.textContent.replace(/\s+$/g,'') + '</a><img src="http://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
+              ele.innerHTML = '<a href="https://www.anobii.com/" target="_blank">' +
+                              (showCover?'<img src="' + obj.resultFinal[0].imageUrl.replace('http://', 'https://').replace('type=1', 'type=3') + '"/><br/>':'') +
+                              ele.textContent.replace(/\s+$/g,'') + '</a><img src="https://static.anobii.com/favicon.ico" style="vertical-align:middle;margin-left:5px;' +
                               (showCover?'margin-top:5px;':'') +
                               '"/>';
               addAnobiiRating(ele, bookId);
@@ -1749,7 +1760,7 @@ function addAnobiiRating(ele, bookId) {
   ele.appendChild(loading);
   utils.crossOriginXMLHttpRequest({
     method: 'GET',
-    url: 'http://iapp2.anobii.com/InternalAPI/html/iapp2/item/book?itemId=' + bookId + '&description=0',
+    url: 'https://iapp2.anobii.com/InternalAPI/html/iapp2/item/book?itemId=' + bookId + '&description=0',
     onload: function(t) {
       ele.removeChild(loading);
       if (t.status == 200) {
@@ -1757,7 +1768,7 @@ function addAnobiiRating(ele, bookId) {
         if (obj && obj.length > 0) {
           obj = obj[0];
           var isbn = obj.bookDetail['isbn-13'] || obj.bookDetail['isbn-10'];
-          var anobiiBookURL = 'http://www.anobii.com/books/' + isbn + '/' + bookId;
+          var anobiiBookURL = 'https://www.anobii.com/books/' + isbn + '/' + bookId;
           var a = ele.getElementsByTagName('a');
           if (a && a.length > 0) {
             for (var ai=0 ; ai<a.length ; ai++) {
@@ -1789,15 +1800,15 @@ function addAnobiiRating(ele, bookId) {
 
                 // filled star
                 for (var i=0; i<rateInt; i++) {
-                  rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_1.gif" width="10" height="10"/>';
+                  rating += '<img src="https://static.anobii.com/anobi/live/image/star_self_1.gif" width="10" height="10"/>';
                 }
                 // half filled star
                 if (ratePtFive) {
-                  rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_05.gif" width="10" height="10"/>';
+                  rating += '<img src="https://static.anobii.com/anobi/live/image/star_self_05.gif" width="10" height="10"/>';
                 }
                 // unfilled star
                 for (var j=rateInt+ratePtFive; j<5; j++) {
-                  rating += '<img src="http://static.anobii.com/anobi/live/image/star_self_0.gif" width="10" height="10"/>';
+                  rating += '<img src="https://static.anobii.com/anobi/live/image/star_self_0.gif" width="10" height="10"/>';
                 }
 
                 rating += ' (' + obj.totalRatePerson + '/' + obj.totalOwner + ')';
@@ -1827,6 +1838,90 @@ function addAnobiiRating(ele, bookId) {
   });
 }
 
+function hkplSearch() {
+  var div = document.createElement('div');
+  var html = '<div style="margin-top: 5px;"><form><div class="buttons"><a href="#" id="bookworm-hkpl-search" class="button">' +
+             LANG['HKPL_SEARCH'] + '</a> <span id="bookworm-hkpl-search-progress"></span>';
+  for (var i=0 ; i<HKPL_SEARCH_THERSOLD.length ; i++) {
+    html += (i>0?' |':'') + ' <a href="#" data-role="bookworm-hkpl-search-filter" data-value="' + HKPL_SEARCH_THERSOLD[i] + '">' + HKPL_SEARCH_THERSOLD[i] + '</a>';
+  }
+  html += '</div></form></div>';
+
+  div.innerHTML = html;
+  div.querySelector('[data-role="bookworm-hkpl-search-filter"][data-value="10"]').setAttribute('selected', 'selected');
+
+  document.querySelector('#searchNavBar').parentNode.insertBefore(div, document.querySelector('#searchNavBar').nextSibling);
+
+  div.addEventListener('click', function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (e.target.getAttribute('id') == 'bookworm-hkpl-search') {
+      _hkplSearch_doSearch();
+    }
+    else if (e.target.getAttribute('data-role') == 'bookworm-hkpl-search-filter') {
+      document.querySelector('[data-role="bookworm-hkpl-search-filter"][selected]').removeAttribute('selected');
+      e.target.setAttribute('selected', 'selected');
+      _hkplSearch_filter();
+    }
+  });
+}
+
+function _hkplSearch_doSearch() {
+  var html = document.body.innerHTML;
+  document.querySelector('ul.records').innerHTML = '';
+  _hkplSearch_process(html, 1);
+}
+
+function _hkplSearch_process(html, page) {
+  var thersold = document.querySelector('[data-role="bookworm-hkpl-search-filter"][selected]').getAttribute('data-value');
+
+  html = extract(html, '<ul class="records"', '<div class="buttons">');
+  var m = html.match(/<li.+?<\/li>/sg);
+  m.forEach(function(v) {
+    var count = v.match(/<span.+?class="requestCount".+?>.+?(\d+).+?<\/span>/);
+    count = count?parseInt(count[1], 10) : 0;
+    if (count > 0) {
+      var className = ' ';
+      for (var i=0 ; i<HKPL_SEARCH_THERSOLD.length ; i++) {
+        if (count >= HKPL_SEARCH_THERSOLD[i]) {
+          className += 'bookworm-hkpl-reserve-' + HKPL_SEARCH_THERSOLD[i] + ' ';
+        }
+      }
+      var style = '';
+      if (count < thersold) {
+        style = ' style="display:none;"';
+      }
+      document.querySelector('ul.records').innerHTML += v.replace(/<li class="/, '<li' + style + ' class="' + className);
+    }
+  })
+
+  ++page;
+
+  if (page > 50) {
+    return;
+  }
+
+  var theme = document.location.href.match(/&theme=[a-zA-Z]+/);
+  utils.crossOriginXMLHttpRequest({
+    method: 'GET',
+    url: document.location.href.replace(/&pageNumber=\d+/, '').replace(theme, '') + '&pageNumber=' + page + theme,
+    onload: function(t) {
+      document.querySelector('#bookworm-hkpl-search-progress').innerHTML = page + ' page' + (page>1?'s':'');
+      _hkplSearch_process(t.responseText, page);
+    }
+  });
+}
+
+function _hkplSearch_filter() {
+  var value = document.querySelector('[data-role="bookworm-hkpl-search-filter"][selected]').getAttribute('data-value');
+  document.querySelectorAll('li.record').forEach(function(v) {
+    v.style.display = 'none';
+  });
+  document.querySelectorAll('.bookworm-hkpl-reserve-' + value).forEach(function(v) {
+    v.style.display = '';
+  });
+}
+
 function _hkplSuggestion_booksTW(t) {
   if (t && t.responseText) {
     t = t.responseText;
@@ -1844,7 +1939,7 @@ function _hkplSuggestion_booksTW(t) {
   t = extract(t, '<h1 itemprop="name">');
   res = extract(t, null, '</h1>');
   document.getElementById('title').value = res?res:'';
-  // <a href="http://search.books.com.tw/exep/prod_search.php?key=XXXXX&f=author">
+  // <a href="https://search.books.com.tw/exep/prod_search.php?key=XXXXX&f=author">
   res = t.match(/<a href=\"[^\"]*f=author\">([^<]+)/);
   document.getElementById('author').value = res?res[1]:'';
   // <span itemprop="brand">Publisher</span>
@@ -2051,6 +2146,11 @@ if (/anobii\.com/.test(document.location.href)) {
   if (document.location.href.indexOf('/reading_stat' > 0) || document.location.href.indexOf('/shelf_stat' > 0)) {
     anobiiStat();
   }
+}
+else if (document.location.href.indexOf('https://webcat.hkpl.gov.hk/search/query') === 0) {
+  g_pageType = PAGE_TYPE_HKPL_SEARCH;
+
+  hkplSearch();
 }
 else if (/\/lib\/item\?id=chamo\:\d+/.test(document.location.href)) {
   g_pageType = PAGE_TYPE_HKPL_BOOK;
